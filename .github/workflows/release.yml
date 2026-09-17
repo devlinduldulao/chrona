@@ -45,8 +45,21 @@ jobs:
           pnpm --filter chrona-core pack --pack-destination "$RUNNER_TEMP/packs"
           pnpm --filter chrona-react pack --pack-destination "$RUNNER_TEMP/packs"
 
-      # Core first: chrona-react depends on it.
+      # Core first: chrona-react depends on it. Skipping versions already on the
+      # registry keeps a re-run, or a moved tag, from failing the release over
+      # work that is in fact already done.
       - name: Publish
         run: |
-          npm publish "$RUNNER_TEMP"/packs/chrona-core-*.tgz --access public --provenance
-          npm publish "$RUNNER_TEMP"/packs/chrona-react-*.tgz --access public --provenance
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          publish() {
+            name="$1"
+            tarball="$2"
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is already published; skipping."
+            else
+              npm publish "$tarball" --access public --provenance
+            fi
+          }
+          publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz
+          publish chrona-react "$RUNNER_TEMP"/packs/chrona-react-*.tgz
