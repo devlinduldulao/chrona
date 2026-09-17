@@ -3,9 +3,14 @@
 Temporal-native, headless date and time primitives. No legacy `Date` values,
 no free-form date parsing, and no CSS in the published packages.
 
-**Status: experimental 0.1.0 implementation.** This is a working first release,
-not completion of the full [architecture roadmap](PLANS.md). Packages have not
-been published. No screen-reader compatibility certification is claimed.
+**Status: experimental 0.1.0.** This is a working first release, not completion
+of the full [architecture roadmap](PLANS.md). Public APIs are not frozen for v1.
+No screen-reader compatibility certification is claimed.
+
+```sh
+npm install chrona-react   # React primitives
+npm install chrona-core    # framework-agnostic state machines
+```
 
 ## Develop
 
@@ -40,8 +45,8 @@ and [SECURITY.md](SECURITY.md) for the provisional reporting policy.
 
 | Package | Contents |
 | --- | --- |
-| `chrona-core` | Pure Calendar, range, field, and picker transitions; prop getters; locale utilities; external store; focus effect helper |
-| `chrona-react` | `Calendar`, `RangeCalendar`, `DateField`, `TimeField`, `DatePicker`, hooks, and `ChronaProvider` |
+| [`chrona-core`](https://www.npmjs.com/package/chrona-core) | Pure Calendar, range, field, and picker transitions; prop getters; locale utilities; external store; focus effect helper |
+| [`chrona-react`](https://www.npmjs.com/package/chrona-react) | `Calendar`, `RangeCalendar`, `DateField`, `TimeField`, `DatePicker`, hooks, and `ChronaProvider` |
 | `chrona-playground` | Private Vite workbench; owns all CSS, icons, and the optional runtime polyfill |
 
 Library output is ESM with declarations and source maps, targeting ES2022.
