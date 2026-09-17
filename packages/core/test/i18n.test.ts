@@ -27,6 +27,27 @@ describe("Intl cache", () => {
         } finally { replacement.mockRestore(); }
     });
 
+    it("normalizes the no-break spaces ICU versions disagree about", () => {
+        // Newer ICU puts U+202F before AM/PM where older ICU puts a plain space, so the same call
+        // produces different markup on Node and in the browser and hydration fails.
+        const time = Temporal.PlainTime.from({ hour: 9, minute: 30 });
+        const NativeFormatter = Intl.DateTimeFormat;
+        const narrow = vi.spyOn(Intl, "DateTimeFormat").mockImplementation((locale, options) => {
+            const formatter = new NativeFormatter(locale, options);
+            return {
+                formatToParts: (value?: never) => formatter.formatToParts(value).map((part) => ({ ...part, value: part.value.replace(/ /g, "\u202F") })),
+                format: (value?: never) => formatter.format(value).replace(/ /g, "\u202F"),
+                resolvedOptions: () => formatter.resolvedOptions(),
+            } as unknown as Intl.DateTimeFormat;
+        });
+        try {
+            const literals = formatParts(time, "en-US", { hour: "numeric", minute: "2-digit", hourCycle: "h12" }).filter((part) => part.type === "literal");
+            expect(literals.map((part) => part.value)).not.toContain("\u202F");
+            expect(literals.some((part) => part.value === " ")).toBe(true);
+            expect(formatDate(Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 }), "en-US", { dateStyle: "full" })).not.toContain("\u202F");
+        } finally { narrow.mockRestore(); }
+    });
+
     it("preserves Temporal formatting and locale ordering", () => {
         const date = Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 });
         expect(formatDate(date, "en-US", { dateStyle: "full" })).toBe("Wednesday, September 16, 2026");

@@ -143,6 +143,28 @@ export function transitionCalendar(state: CalendarState, event: CalendarEvent, o
 
 export const calendarKeys = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown", "Enter", " "]);
 
+/** Styling hooks are mirrored onto both cell elements so either can carry the visual treatment. */
+function describeCell(state: CalendarState, options: CalendarOptions & { today?: PlainDate }, date: PlainDate, month: PlainDate) {
+    const outside = !date.toPlainYearMonth().equals(month.toPlainYearMonth());
+    const disabled = isDateDisabled(date, options);
+    const unavailable = !!options.isDateUnavailable?.(date);
+    const selected = state.value !== null && temporal().PlainDate.compare(date, state.value) === 0;
+    const focused = sameDate(date, state.focusedValue) && !outside;
+    const today = options.today ? temporal().PlainDate.compare(date, options.today) === 0 : false;
+    return {
+        disabled, unavailable, selected, focused, today,
+        data: {
+            "data-date": date.toString(),
+            "data-selected": selected ? "" : undefined,
+            "data-focused": focused ? "" : undefined,
+            "data-disabled": disabled ? "" : undefined,
+            "data-unavailable": unavailable ? "" : undefined,
+            "data-outside-month": outside ? "" : undefined,
+            "data-today": today ? "" : undefined,
+        },
+    };
+}
+
 export function connectCalendar(state: CalendarState, options: CalendarOptions & { id: string; today?: PlainDate }) {
     const text = { ...translations, ...options.translations };
     const part = (name: string) => ({ "data-scope": "calendar", "data-part": name });
@@ -150,28 +172,31 @@ export function connectCalendar(state: CalendarState, options: CalendarOptions &
         getRootProps: () => ({ ...part("root"), dir: options.dir, "data-disabled": options.disabled ? "" : undefined, "data-readonly": options.readOnly ? "" : undefined }),
         getGridProps: (month = state.visibleMonth) => ({ ...part("grid"), role: "grid" as const, "aria-label": formatDate(month, options.locale, { month: "long", year: "numeric" }), "aria-readonly": options.readOnly || undefined, "aria-disabled": options.disabled || undefined }),
         getCellProps: (date: PlainDate, month = state.visibleMonth) => {
-            const outside = !date.toPlainYearMonth().equals(month.toPlainYearMonth());
-            const disabled = isDateDisabled(date, options);
-            const unavailable = !!options.isDateUnavailable?.(date);
-            const selected = state.value !== null && temporal().PlainDate.compare(date, state.value) === 0;
-            const focused = sameDate(date, state.focusedValue) && !outside;
-            const today = options.today ? temporal().PlainDate.compare(date, options.today) === 0 : false;
+            const cell = describeCell(state, options, date, month);
             return {
                 ...part("cell"),
-                id: `${options.id}-${month.toString()}-${date.toString()}`,
                 role: "gridcell" as const,
-                tabIndex: focused && !options.disabled ? 0 : -1,
-                "aria-label": `${formatDate(date, options.locale, { dateStyle: "full" })}${unavailable ? `, ${text.unavailable}` : ""}`,
-                "aria-selected": selected,
-                "aria-disabled": disabled || unavailable || undefined,
-                "aria-current": today ? "date" as const : undefined,
-                "data-date": date.toString(),
-                "data-selected": selected ? "" : undefined,
-                "data-focused": focused ? "" : undefined,
-                "data-disabled": disabled ? "" : undefined,
-                "data-unavailable": unavailable ? "" : undefined,
-                "data-outside-month": outside ? "" : undefined,
-                "data-today": today ? "" : undefined,
+                "aria-selected": cell.selected,
+                "aria-disabled": cell.disabled || cell.unavailable || undefined,
+                ...cell.data,
+            };
+        },
+        /**
+         * The interactive element inside the cell. A button that claims `role="gridcell"` stops
+         * being a button in the accessibility tree, so the grid semantics and the control are
+         * kept on separate elements.
+         */
+        getCellTriggerProps: (date: PlainDate, month = state.visibleMonth) => {
+            const cell = describeCell(state, options, date, month);
+            return {
+                ...part("cell-trigger"),
+                id: `${options.id}-${month.toString()}-${date.toString()}`,
+                type: "button" as const,
+                tabIndex: cell.focused && !options.disabled ? 0 : -1,
+                "aria-label": `${formatDate(date, options.locale, { dateStyle: "full" })}${cell.unavailable ? `, ${text.unavailable}` : ""}`,
+                "aria-disabled": cell.disabled || cell.unavailable || undefined,
+                "aria-current": cell.today ? "date" as const : undefined,
+                ...cell.data,
             };
         },
         getPrevButtonProps: () => ({ ...part("prev-button"), type: "button" as const, "aria-label": text.previousMonth, disabled: !canPage(state, -1, options) }),

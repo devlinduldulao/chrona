@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createRange, createStore, formatDate, getRangeCellProps, transitionRange, translations, validateRange, type DateRange, type PlainDate, type RangeEvent } from "chrona-core";
+import { createRange, createStore, formatDate, getRangeCellProps, getRangeCellTriggerProps, transitionRange, translations, validateRange, type DateRange, type PlainDate, type RangeEvent } from "chrona-core";
 import { Calendar, CalendarSurface, useCalendar, type CalendarProps } from "./calendar";
 import { Part, composeEvent, type PartProps } from "./part";
 import { useFormReset, type HiddenInputProps } from "./form";
@@ -37,7 +37,11 @@ export function useRangeCalendar(input: RangeCalendarProps = {}) {
     }
     const calendar = useCalendar({ ...props, value: null, defaultValue: null, placeholderValue: props.placeholderValue ?? state.value?.start, onChange: (date) => { if (date) send({ type: "SELECT", date }); }, onFocusedValueChange: (date) => { props.onFocusedValueChange?.(date); if (state.anchor) send({ type: "PREVIEW", date }); } });
     const baseApi = calendar.api;
-    const api = { ...baseApi, getCellProps: (date: PlainDate, month?: PlainDate) => ({ ...baseApi.getCellProps(date, month), ...getRangeCellProps(state, date) }) };
+    const api = {
+        ...baseApi,
+        getCellProps: (date: PlainDate, month?: PlainDate) => ({ ...baseApi.getCellProps(date, month), ...getRangeCellProps(state, date) }),
+        getCellTriggerProps: (date: PlainDate, month?: PlainDate) => ({ ...baseApi.getCellTriggerProps(date, month), ...getRangeCellTriggerProps(state, date) }),
+    };
     return {
         state, send, announcement, props, options: props, api, rootRef: calendar.rootRef, months: calendar.months,
         reset() { const value = props.defaultValue ?? null; store.setState(createRange(value)); props.onChange?.(value); },

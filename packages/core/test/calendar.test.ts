@@ -105,7 +105,7 @@ describe("calendar machine", () => {
         const state = createCalendar({ value: date });
         const api = connectCalendar(state, { id: "calendar", numberOfMonths: 2 });
         const months = [state.visibleMonth, state.visibleMonth.add({ months: 1 })];
-        const tabbable = months.flatMap((month) => weeksInMonthView(month.toPlainYearMonth(), 1, true).flat().map((cell) => api.getCellProps(cell, month))).filter((props) => props.tabIndex === 0);
+        const tabbable = months.flatMap((month) => weeksInMonthView(month.toPlainYearMonth(), 1, true).flat().map((cell) => ({ ...api.getCellProps(cell, month), ...api.getCellTriggerProps(cell, month) }))).filter((props) => props.tabIndex === 0);
         expect(tabbable).toHaveLength(1);
         expect(tabbable[0]?.["aria-selected"]).toBe(true);
     });

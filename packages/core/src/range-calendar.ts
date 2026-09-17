@@ -54,18 +54,30 @@ export function transitionRange(state: RangeState, event: RangeEvent, options: O
     return { state: createRange(value), effects: [{ type: "change", value }, { type: "rangeStart", value: null }] };
 }
 
-export function getRangeCellProps(state: RangeState, date: PlainDate) {
+function rangeCellState(state: RangeState, date: PlainDate) {
     const displayed = state.anchor ? orderedRange(state.anchor, state.preview ?? state.anchor) : state.value;
     const selected = rangeContains(displayed, date);
     const same = (value: PlainDate | undefined) => !!value && temporal().PlainDate.compare(date, value) === 0;
     return {
-        "data-scope": "range-calendar",
-        "aria-selected": selected,
-        "data-selected": selected ? "" : undefined,
-        "data-in-range": selected ? "" : undefined,
-        "data-range-start": same(displayed?.start) ? "" : undefined,
-        "data-range-end": same(displayed?.end) ? "" : undefined,
-        "data-preview": state.anchor && selected ? "" : undefined,
-        "data-invalid": state.invalid && selected ? "" : undefined,
+        selected,
+        data: {
+            "data-scope": "range-calendar",
+            "data-selected": selected ? "" : undefined,
+            "data-in-range": selected ? "" : undefined,
+            "data-range-start": same(displayed?.start) ? "" : undefined,
+            "data-range-end": same(displayed?.end) ? "" : undefined,
+            "data-preview": state.anchor && selected ? "" : undefined,
+            "data-invalid": state.invalid && selected ? "" : undefined,
+        },
     };
+}
+
+export function getRangeCellProps(state: RangeState, date: PlainDate) {
+    const { selected, data } = rangeCellState(state, date);
+    return { "aria-selected": selected, ...data };
+}
+
+/** The trigger inside a cell carries the styling hooks; `aria-selected` stays on the gridcell. */
+export function getRangeCellTriggerProps(state: RangeState, date: PlainDate) {
+    return rangeCellState(state, date).data;
 }

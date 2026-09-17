@@ -28,6 +28,7 @@
     "sideEffects": false,
     "files": [
         "dist",
+        "AGENTS.md",
         "LICENSE"
     ],
     "exports": {
@@ -37,7 +38,7 @@
         }
     },
     "scripts": {
-        "build": "tsup src/index.ts --format esm --dts --sourcemap --clean --target es2022"
+        "build": "tsup"
     },
     "dependencies": {
         "temporal-spec": "^0.3.0"

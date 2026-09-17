@@ -29,7 +29,7 @@ export function useCalendar(props: CalendarProps = {}) {
     React.useEffect(() => {
         if (pendingFocus.current) {
             pendingFocus.current = false;
-            rootRef.current?.querySelector<HTMLElement>('[data-part="cell"][tabindex="0"]')?.focus();
+            rootRef.current?.querySelector<HTMLElement>('[data-part="cell-trigger"][tabindex="0"]')?.focus();
         }
     });
 
@@ -88,14 +88,23 @@ const Heading = React.forwardRef<HTMLElement, PartProps>(function Heading({ chil
 
 type ButtonProps = React.ComponentPropsWithoutRef<"button"> & { asChild?: boolean };
 
-const PrevButton = React.forwardRef<HTMLElement, ButtonProps>(function PrevButton({ onClick, ...props }, ref) {
-    const { api, send } = useContext();
-    return <Part as="button" {...props} {...api.getPrevButtonProps()} ref={ref} onClick={composeEvent(onClick, () => send({ type: "PAGE", direction: -1 }))} />;
+/**
+ * Paging buttons carry an `aria-label` but no text, so without a default they render as blank
+ * chrome for sighted users. The arrow points the way the button pages in the resolved direction.
+ */
+function Chevron({ towards }: { towards: "start" | "end" }) {
+    const points = towards === "start" ? "15 4 7 12 15 20" : "9 4 17 12 9 20";
+    return <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" data-scope="calendar" data-part="chevron"><polyline points={points} /></svg>;
+}
+
+const PrevButton = React.forwardRef<HTMLElement, ButtonProps>(function PrevButton({ onClick, children, ...props }, ref) {
+    const { api, send, options } = useContext();
+    return <Part as="button" {...props} {...api.getPrevButtonProps()} ref={ref} onClick={composeEvent(onClick, () => send({ type: "PAGE", direction: -1 }))}>{children ?? <Chevron towards={options.dir === "rtl" ? "end" : "start"} />}</Part>;
 });
 
-const NextButton = React.forwardRef<HTMLElement, ButtonProps>(function NextButton({ onClick, ...props }, ref) {
-    const { api, send } = useContext();
-    return <Part as="button" {...props} {...api.getNextButtonProps()} ref={ref} onClick={composeEvent(onClick, () => send({ type: "PAGE", direction: 1 }))} />;
+const NextButton = React.forwardRef<HTMLElement, ButtonProps>(function NextButton({ onClick, children, ...props }, ref) {
+    const { api, send, options } = useContext();
+    return <Part as="button" {...props} {...api.getNextButtonProps()} ref={ref} onClick={composeEvent(onClick, () => send({ type: "PAGE", direction: 1 }))}>{children ?? <Chevron towards={options.dir === "rtl" ? "start" : "end"} />}</Part>;
 });
 
 const Grid = React.forwardRef<HTMLElement, PartProps & { monthIndex?: number }>(function Grid({ monthIndex = 0, children, ...props }, ref) {
@@ -131,11 +140,14 @@ const GridBody = React.forwardRef<HTMLElement, Omit<PartProps, "children"> & { c
     return <Part {...props} ref={ref} role="rowgroup" data-scope="calendar" data-part="grid-body">{weeks.map((week) => <div key={week[0]!.toString()} role="row" data-scope="calendar" data-part="row">{week.map((date) => <React.Fragment key={date.toString()}>{children ? children(date) : <Cell date={date} />}</React.Fragment>)}</div>)}</Part>;
 });
 
-const Cell = React.forwardRef<HTMLElement, ButtonProps & { date: PlainDate }>(function Cell({ date, children, onClick, onKeyDown, onFocus, ...props }, ref) {
+const CellContext = React.createContext<PlainDate | null>(null);
+
+const CellTrigger = React.forwardRef<HTMLElement, ButtonProps>(function CellTrigger({ children, onClick, onKeyDown, onFocus, ...props }, ref) {
     const { api, send, month, options } = useMonth();
-    const cellProps = api.getCellProps(date, month);
-    // aria-disabled instead of native disabled keeps out-of-range cells discoverable by screen readers.
-    return <Part as="button" {...props} {...cellProps} type="button" ref={ref}
+    const date = React.useContext(CellContext);
+    if (!date) throw new Error("Calendar.CellTrigger must be inside Calendar.Cell.");
+    // aria-disabled instead of native disabled keeps out-of-range dates discoverable by screen readers.
+    return <Part as="button" {...props} {...api.getCellTriggerProps(date, month)} ref={ref}
         onFocus={composeEvent(onFocus, () => { if (!options.disabled) send({ type: "FOCUS", date }); })}
         onClick={composeEvent(onClick, () => send({ type: "SELECT", date }))}
         onKeyDown={composeEvent(onKeyDown, (event) => {
@@ -143,6 +155,12 @@ const Cell = React.forwardRef<HTMLElement, ButtonProps & { date: PlainDate }>(fu
             event.preventDefault();
             send({ type: "KEY_DOWN", key: event.key, shiftKey: event.shiftKey });
         })}>{children ?? getNumberFormatter(options.locale, { useGrouping: false }).format(date.day)}</Part>;
+});
+
+/** The grid semantics live on the cell; the button inside it stays a button. */
+const Cell = React.forwardRef<HTMLElement, PartProps & { date: PlainDate }>(function Cell({ date, children, ...props }, ref) {
+    const { api, month } = useMonth();
+    return <CellContext.Provider value={date}><Part {...props} {...api.getCellProps(date, month)} ref={ref}>{children ?? <CellTrigger />}</Part></CellContext.Provider>;
 });
 
 const LiveRegion = React.forwardRef<HTMLElement, PartProps>(function LiveRegion(props, ref) {
@@ -162,4 +180,4 @@ function HiddenInput(props: HiddenInputProps) {
     return <input {...props} ref={input} type="hidden" disabled={options.disabled || props.disabled} value={state.value?.toString() ?? ""} data-scope="calendar" data-part="hidden-input" />;
 }
 
-export const Calendar = { Root: CalendarRoot, Header, Heading, PrevButton, NextButton, Grid, GridHeader, HeaderCell, GridBody, Cell, LiveRegion, ClearButton, HiddenInput };
+export const Calendar = { Root: CalendarRoot, Header, Heading, PrevButton, NextButton, Grid, GridHeader, HeaderCell, GridBody, Cell, CellTrigger, LiveRegion, ClearButton, HiddenInput };

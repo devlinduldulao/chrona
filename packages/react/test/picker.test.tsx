@@ -91,9 +91,19 @@ describe("DatePicker", () => {
         const { rerender } = render(example(false));
         expect(screen.getByRole("dialog", { name: "Choose date" }).hasAttribute("aria-labelledby")).toBe(false);
         rerender(example(true));
-        expect(screen.getByRole("dialog", { name: "Visit" })).toBeTruthy();
+        // Both would be present otherwise, and aria-labelledby silently wins.
+        expect(screen.getByRole("dialog", { name: "Visit" }).hasAttribute("aria-label")).toBe(false);
         rerender(example(false));
         expect(screen.getByRole("dialog", { name: "Choose date" }).hasAttribute("aria-labelledby")).toBe(false);
+    });
+
+    it("gives the labelled trigger a visible default", () => {
+        render(<Example />);
+        const trigger = screen.getByRole("button", { name: "Choose date" });
+        expect(trigger.querySelector('[data-part="trigger-icon"]')).toBeTruthy();
+        cleanup();
+        render(<DatePicker.Root placeholderValue={date()}><DatePicker.Trigger>Pick</DatePicker.Trigger></DatePicker.Root>);
+        expect(screen.getByRole("button", { name: "Choose date" }).textContent).toBe("Pick");
     });
 
     it("does not open disabled pickers", async () => {

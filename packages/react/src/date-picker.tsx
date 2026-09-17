@@ -76,12 +76,17 @@ const Label = React.forwardRef<HTMLElement, PartProps>(function Label(props, ref
     return <DateField.Label {...props} ref={ref} />;
 });
 
-const Trigger = React.forwardRef<HTMLElement, React.ComponentPropsWithoutRef<"button"> & { asChild?: boolean }>(function Trigger({ onClick, ...props }, ref) {
+/** Like the paging buttons, the trigger is labelled but has no text of its own to show. */
+function CalendarGlyph() {
+    return <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" data-scope="date-picker" data-part="trigger-icon"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
+}
+
+const Trigger = React.forwardRef<HTMLElement, React.ComponentPropsWithoutRef<"button"> & { asChild?: boolean }>(function Trigger({ onClick, children, ...props }, ref) {
     const picker = usePicker();
     return <Part as="button" {...props} type="button" ref={(node) => {
         picker.trigger.current = node;
         if (typeof ref === "function") ref(node); else if (ref) ref.current = node;
-    }} aria-label={props["aria-label"] ?? picker.props.translations?.chooseDate ?? translations.chooseDate} aria-haspopup="dialog" aria-expanded={picker.open} aria-controls={`${picker.id}-dialog`} disabled={picker.props.disabled} data-scope="date-picker" data-part="trigger" onClick={composeEvent(onClick, () => picker.send({ type: "TOGGLE" }))} />;
+    }} aria-label={props["aria-label"] ?? picker.props.translations?.chooseDate ?? translations.chooseDate} aria-haspopup="dialog" aria-expanded={picker.open} aria-controls={`${picker.id}-dialog`} disabled={picker.props.disabled} data-scope="date-picker" data-part="trigger" onClick={composeEvent(onClick, () => picker.send({ type: "TOGGLE" }))}>{children ?? <CalendarGlyph />}</Part>;
 });
 
 const Popover = React.forwardRef<HTMLDialogElement, Omit<React.ComponentPropsWithoutRef<"dialog">, "open"> & { anchored?: boolean }>(function Popover({ children, anchored = true, onCancel, onClose, onKeyDown, ...props }, ref) {
@@ -95,7 +100,7 @@ const Popover = React.forwardRef<HTMLDialogElement, Omit<React.ComponentPropsWit
         if (!element) return;
         if (picker.open && !element.open) {
             if (picker.props.modal === false) element.show(); else element.showModal();
-            element.querySelector<HTMLElement>('[data-part="cell"][tabindex="0"]')?.focus();
+            element.querySelector<HTMLElement>('[data-part="cell-trigger"][tabindex="0"]')?.focus();
         } else if (!picker.open && element.open) {
             element.close();
             picker.trigger.current?.focus();
@@ -174,10 +179,15 @@ const Popover = React.forwardRef<HTMLDialogElement, Omit<React.ComponentPropsWit
         return () => element.ownerDocument.removeEventListener("pointerdown", dismiss);
     }, [picker.open]);
 
+    // aria-labelledby wins wherever both are present, so the fallback name is only applied when
+    // nothing else names the dialog.
+    const labelledBy = props["aria-labelledby"] ?? (props["aria-label"] || !picker.labelled ? undefined : `${picker.id}-field-label`);
+    const label = props["aria-label"] ?? (labelledBy === undefined ? picker.props.translations?.chooseDate ?? translations.chooseDate : undefined);
+
     return <dialog {...props} ref={(node) => {
         dialog.current = node;
         if (typeof ref === "function") ref(node); else if (ref) ref.current = node;
-    }} id={`${picker.id}-dialog`} aria-label={props["aria-label"] ?? picker.props.translations?.chooseDate ?? translations.chooseDate} aria-labelledby={props["aria-labelledby"] ?? (props["aria-label"] || !picker.labelled ? undefined : `${picker.id}-field-label`)} aria-modal={picker.props.modal !== false || undefined} data-scope="date-picker" data-part="popover"
+    }} id={`${picker.id}-dialog`} aria-label={label} aria-labelledby={labelledBy} aria-modal={picker.props.modal !== false || undefined} data-scope="date-picker" data-part="popover"
         onKeyDown={composeEvent(onKeyDown, (event) => { if (picker.props.modal !== false) containTabFocus(event.currentTarget, event); })}
         onCancel={(event) => { onCancel?.(event); const canceled = event.defaultPrevented; event.preventDefault(); if (!canceled) picker.send({ type: "CLOSE" }); }}
         onClose={composeEvent(onClose, () => { if (picker.open) picker.send({ type: "CLOSE" }); })}>{picker.open ? children : null}</dialog>;

@@ -27,6 +27,10 @@ it is not native, load a polyfill before rendering:
 import "temporal-polyfill/global";
 ```
 
+The TypeScript types come along for free: `chrona-core`'s declarations reference
+`temporal-spec/global`, so importing anything from this package puts the ambient
+`Temporal` namespace in scope, exactly as the examples below assume.
+
 ## Calendar
 
 ```tsx
@@ -64,6 +68,14 @@ covers arrows, Home/End, PageUp/PageDown, Shift+PageUp/PageDown, and
 Enter/Space, with RTL and locale week starts. Unavailable dates stay focusable
 but unselectable; hard-disabled dates are not interactive.
 
+`Calendar.Cell` renders the `role="gridcell"` wrapper and `Calendar.CellTrigger`
+the button inside it, so the control keeps its button role in the accessibility
+tree; a cell given no children renders its trigger for you. Style the
+interactive element as `[data-part="cell-trigger"]`. `PrevButton` and
+`NextButton` render a default chevron, pointing the way they page in the
+resolved reading direction, when you give them no children; `DatePicker.Trigger`
+does the same with a calendar glyph.
+
 ## DatePicker
 
 ```tsx
@@ -77,6 +89,11 @@ but unselectable; hard-disabled dates are not interactive.
   <DatePicker.HiddenInput name="appointment" />
 </DatePicker.Root>
 ```
+
+`DatePicker` accepts every `DateField` prop. `placeholderValue` is one of them,
+and it decides the reference date the segments and the calendar open on before a
+value exists — supply it (or `value`/`defaultValue`) rather than falling back to
+today.
 
 The popover is a native `<dialog>`, modal by default. It anchors to its trigger,
 flips above when that fits, shifts to stay in the viewport, and scrolls
@@ -105,6 +122,11 @@ Style via `data-scope`, `data-part`, and state attributes: `data-selected`,
 `data-outside-month`, `data-in-range`, `data-range-start`, `data-range-end`,
 `data-preview`, `data-invalid`, `data-placeholder`.
 
+Date cells are two parts: `cell` is the `role="gridcell"` wrapper, `cell-trigger`
+is the button that takes focus, hover, and the click. Both carry the state
+attributes. The default icons are `data-part="chevron"` on the paging buttons
+and `data-part="trigger-icon"` on the picker trigger.
+
 Layout and button parts accept `asChild` with event and ref composition. Input
 segments, hidden inputs, and the dialog keep their HTML elements.
 
@@ -119,11 +141,44 @@ incomplete, or invalid values in your form layer before submission.
 
 - ESM with declarations and source maps, targeting ES2022.
 - Size budgets, minified + gzip, excluding React: Calendar 6 kB, DatePicker 12 kB.
-- For deterministic SSR, pass the same reference date, value, locale, and time
-  zone on server and client. In Server Component frameworks, consume this
-  package from a client component.
+- Blank segments read `mm/dd/yyyy` and `hh:mm`; filled numeric segments except
+  the year are zero-padded, so a field keeps one width as it fills.
+- Typed digits are literal and stepping clamps: 29 February is reachable before
+  the year is typed, and a finished date the calendar cannot hold reports
+  `onInvalid("nonexistent")` instead of sliding to the 28th. Validation waits for
+  a segment to finish, so a half-typed year raises nothing until blur.
 - Use `value`/`onChange` or `defaultValue`/`onChange` — do not switch modes
   during a component's lifetime.
+
+## Server Rendering
+
+These are client components: mark the module that renders them `"use client"`.
+
+The polyfill import is a side effect, so it has to reach the *client* bundle.
+Importing `temporal-polyfill/global` from a Server Component file installs
+Temporal on the server only. Put it at the top of a `"use client"` module that
+always loads — a providers file, for example — so it runs before hydration:
+
+```tsx
+// app/providers.tsx
+"use client";
+
+import "temporal-polyfill/global";
+import { ChronaProvider } from "chrona-react";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <ChronaProvider locale="en-US" timeZone="Europe/Copenhagen">{children}</ChronaProvider>;
+}
+```
+
+Pass the same reference date, value, locale, and time zone on server and client.
+`timeZone` matters because today is resolved at render time, and a server in
+another zone marks a different cell.
+
+Segment literals are normalized before they reach the DOM: `Intl` emits U+202F
+before AM/PM on newer ICU data and a plain space on older data, and Node and the
+browser rarely ship the same ICU. Chrona collapses both to a plain space, so a
+12-hour `TimeField` hydrates cleanly without forcing `hourCycle="h23"`.
 
 Full documentation lives in the [repository README](https://github.com/devlinduldulao/chrona#readme).
 

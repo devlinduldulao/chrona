@@ -35,6 +35,11 @@ The guard runs when an operation needs Temporal, not at module import, so
 tree-shaking and SSR imports stay safe. A missing runtime produces an actionable
 `ChronaError`.
 
+The runtime and the types are separate concerns. This package's declarations
+reference `temporal-spec/global`, so importing anything from `chrona-core` also
+brings the ambient `Temporal` namespace into scope — the examples below use
+`Temporal.PlainDate` with no types import of their own.
+
 Native support is capability-dependent, not merely version-dependent: some Node
 builds handle ISO operations but throw `Not yet implemented` for non-ISO
 calendar arithmetic.
@@ -56,7 +61,8 @@ let state = createCalendar(options);
 // Prop getters for whatever you render with.
 const api = connectCalendar(state, { ...options, id: "booking" });
 api.getRootProps();
-api.getCellProps(someDate); // aria-selected, data-* state, handlers
+api.getCellProps(someDate);        // the gridcell: role, aria-selected, data-* state
+api.getCellTriggerProps(someDate); // the button inside it: tabIndex, aria-label, data-* state
 ```
 
 ## What's In It
@@ -65,7 +71,7 @@ api.getCellProps(someDate); // aria-selected, data-* state, handlers
 | --- | --- |
 | Temporal | `temporal`, `ChronaError`, `assertDate`, `sameDate`, `clampDate`, `startOfWeek`, `weeksInMonthView` |
 | Calendar | `createCalendar`, `transitionCalendar`, `connectCalendar`, `syncCalendar`, `isDateDisabled`, `isInView`, `canPage`, `calendarKeys` |
-| Range | `createRange`, `transitionRange`, `validateRange`, `rangeContains`, `getRangeCellProps` |
+| Range | `createRange`, `transitionRange`, `validateRange`, `rangeContains`, `getRangeCellProps`, `getRangeCellTriggerProps` |
 | Field | `createField`, `transitionField`, `connectField`, `fieldSegments`, `fieldHourCycle`, `segmentBounds`, `digitValue` |
 | Picker | `transitionPicker` |
 | i18n | `translations`, `resolveWeekStart`, `formatDate`, `formatParts`, `getDateTimeFormatter`, `getNumberFormatter` |
@@ -75,8 +81,13 @@ api.getCellProps(someDate); // aria-selected, data-* state, handlers
 Calendar covers arrow/Home/End/PageUp/PageDown navigation, RTL, locale week
 starts, min/max, unavailable dates, fixed weeks, and paged multi-month views.
 Fields produce locale-ordered segments from Intl and accept ASCII or localized
-digits — not free-form strings. Ranges are inclusive at both ends, normalize
-backward selection, and keep the first endpoint as draft state.
+digits — not free-form strings. Typed digits are literal and stepping clamps, so
+29 February can be typed before the year is known and an impossible finished date
+is reported as `{ type: "invalid", reason: "nonexistent" }` instead of being
+clamped. A segment with an open digit buffer is a draft: it emits no `invalid`
+effect until it is finished or a `BLUR` event closes it. Ranges are inclusive at
+both ends, normalize backward selection, and keep the first endpoint as draft
+state.
 
 Intl formatter caches are bounded to 100 entries per constructor, keyed by
 locale and normalized options.
@@ -87,6 +98,8 @@ locale and normalized options.
 - `required` is accessibility metadata; it does not block native form submission.
 - Styling hooks are `data-scope`, `data-part`, and state attributes such as
   `data-selected`, `data-today`, and `data-unavailable`.
+- Intl output is normalized to plain spaces (U+202F and U+00A0 are collapsed) so
+  markup does not depend on which ICU version the runtime shipped with.
 
 Full documentation lives in the [repository README](https://github.com/devlinduldulao/chrona#readme).
 

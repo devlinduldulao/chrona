@@ -9,7 +9,7 @@ afterEach(cleanup);
 it("selects an inclusive range using only the keyboard", async () => {
     const onChange = vi.fn();
     render(<RangeCalendar.Root locale="en-US" placeholderValue={Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 })} onChange={onChange}><RangeCalendar.Grid><RangeCalendar.GridHeader /><RangeCalendar.GridBody /></RangeCalendar.Grid><RangeCalendar.LiveRegion /></RangeCalendar.Root>);
-    screen.getByRole("gridcell", { name: "Wednesday, September 16, 2026" }).focus();
+    screen.getByRole("button", { name: "Wednesday, September 16, 2026" }).focus();
     await userEvent.keyboard("{Enter}{ArrowRight}{ArrowRight}");
     expect(onChange).not.toHaveBeenCalled();
     await userEvent.keyboard("{Enter}");

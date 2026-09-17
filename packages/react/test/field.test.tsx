@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
+import { renderToString } from "react-dom/server";
+import { hydrateRoot } from "react-dom/client";
 import { Calendar, DateField, RangeCalendar, TimeField } from "../src/index";
 import { useField } from "../src/field";
 
@@ -102,7 +104,7 @@ describe("React fields", () => {
         await user.paste("05/23/1990");
         fireEvent.change(month, { target: { value: "05/23/1990" } });
         expect(onChange).not.toHaveBeenCalled();
-        expect((month as HTMLInputElement).value).toBe("--");
+        expect((month as HTMLInputElement).value).toBe("mm");
     });
 
     it("accepts mobile single-digit InputEvents", () => {
@@ -126,6 +128,34 @@ describe("React fields", () => {
         await userEvent.keyboard("{ArrowUp}");
         fireEvent.reset(container.querySelector("form")!);
         await waitFor(() => expect(container.querySelector<HTMLInputElement>('input[name="date"]')?.value).toBe("2026-09-16"));
+    });
+
+    it("hydrates a 12-hour TimeField when the server and browser ICU disagree about the AM/PM separator", async () => {
+        const element = <TimeField.Root locale="en-US" hourCycle="h12" value={Temporal.PlainTime.from({ hour: 9, minute: 30 })}><TimeField.Field /></TimeField.Root>;
+        const NativeFormatter = Intl.DateTimeFormat;
+        // Two ICU builds: newer data puts U+202F before AM/PM, older data puts a plain space.
+        // Rendering with one and hydrating with the other is exactly the Node/browser mismatch.
+        const icu = (separator: string) => vi.spyOn(Intl, "DateTimeFormat").mockImplementation((locale, options) => {
+            const swap = (text: string) => text.replace(/[\u202F\u00A0 ]/g, separator);
+            return {
+                format: (value?: never) => swap(new NativeFormatter(locale, options).format(value)),
+                formatToParts: (value?: never) => new NativeFormatter(locale, options).formatToParts(value).map((part) => ({ ...part, value: swap(part.value) })),
+                resolvedOptions: () => new NativeFormatter(locale, options).resolvedOptions(),
+            } as unknown as Intl.DateTimeFormat;
+        });
+        const server = icu("\u202F");
+        let markup = "";
+        try { markup = renderToString(element); } finally { server.mockRestore(); }
+        expect(markup).not.toContain("\u202F");
+        const container = document.createElement("div");
+        container.innerHTML = markup;
+        document.body.append(container);
+        const browser = icu(" ");
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            await act(async () => { hydrateRoot(container, element); });
+            expect(logged).not.toHaveBeenCalled();
+        } finally { logged.mockRestore(); browser.mockRestore(); container.remove(); }
     });
 
     it("edits 12-hour time and has accessible segment semantics", async () => {

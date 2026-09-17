@@ -1,5 +1,5 @@
 import * as React from "react";
-import { connectField, createField, createStore, digitValue, fieldHourCycle, transitionField, translations, type FieldEvent, type FieldKind, type FieldOptions, type FieldValue, type SegmentType } from "chrona-core";
+import { connectField, createField, createStore, digitValue, fieldHourCycle, transitionField, translations, type FieldEvent, type FieldInvalidReason, type FieldKind, type FieldOptions, type FieldValue, type SegmentType } from "chrona-core";
 import { Part, composeEvent, type PartProps } from "./part";
 import { useChronaConfig } from "./provider";
 import { useFormReset, type HiddenInputProps } from "./form";
@@ -7,7 +7,7 @@ import { useFormReset, type HiddenInputProps } from "./form";
 export interface FieldProps<Kind extends FieldKind> extends FieldOptions<Kind> {
     defaultValue?: FieldValue<Kind> | null;
     onChange?: (value: FieldValue<Kind> | null) => void;
-    onInvalid?: (reason: "range" | "unavailable") => void;
+    onInvalid?: (reason: FieldInvalidReason) => void;
     id?: string;
     describedBy?: string;
 }
@@ -41,10 +41,9 @@ export function useField<Kind extends FieldKind>(kind: Kind, props: FieldProps<K
         }
     }, [configuration, state, store]);
     const groupRef = React.useRef<HTMLElement | null>(null);
-    const [invalidReason, setInvalidReason] = React.useState<"range" | "unavailable" | null>(null);
-    const announcement = invalidReason === null ? "" : invalidReason === "range"
-        ? options.translations?.invalidRange ?? translations.invalidRange
-        : options.translations?.unavailable ?? translations.unavailable;
+    const [invalidReason, setInvalidReason] = React.useState<FieldInvalidReason | null>(null);
+    const announcementKey = { range: "invalidRange", unavailable: "unavailable", nonexistent: "nonexistentDate" } as const;
+    const announcement = invalidReason === null ? "" : options.translations?.[announcementKey[invalidReason]] ?? translations[announcementKey[invalidReason]];
 
     function moveFocus(segment: SegmentType, offset: number) {
         const elements = Array.from(groupRef.current?.querySelectorAll<HTMLInputElement>("input[data-segment]") ?? []);

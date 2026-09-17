@@ -40,16 +40,22 @@ export type FieldEvent =
     | { type: "PERIOD"; value: 0 | 1 }
     | { type: "BLUR" };
 
+/** `nonexistent` covers calendar-impossible combinations such as 29 February in a common year. */
+export type FieldInvalidReason = "range" | "unavailable" | "nonexistent";
+
 export type FieldEffect<Kind extends FieldKind> =
     | { type: "change"; value: FieldValue<Kind> | null }
     | { type: "advance"; segment: SegmentType }
-    | { type: "invalid"; reason: "range" | "unavailable" };
+    | { type: "invalid"; reason: FieldInvalidReason };
 
 export function fieldHourCycle<Kind extends FieldKind>(options: FieldOptions<Kind>): HourCycle {
     return options.hourCycle ?? getDateTimeFormatter(options.locale, { hour: "numeric" }).resolvedOptions().hourCycle ?? "h23";
 }
 
 function is12Hour(cycle: HourCycle) { return cycle === "h11" || cycle === "h12"; }
+
+const LEAP_PROBE_YEAR = 2024;
+const COMMON_PROBE_YEAR = 2023;
 
 export function fieldSegments<Kind extends FieldKind>(kind: Kind, reference: FieldValue<Kind>, options: FieldOptions<Kind>) {
     const display = kind === "date" ? (reference as PlainDate).withCalendar("gregory") : reference;
@@ -97,7 +103,18 @@ export function segmentBounds<Kind extends FieldKind>(state: FieldState<Kind>, s
     switch (segment) {
         case "year": return { min: 1, max: 9999 };
         case "month": return { min: 1, max: 12 };
-        case "day": return { min: 1, max: (state.reference as PlainDate).with({ year: state.parts.year ?? (state.reference as PlainDate).year, month: state.parts.month ?? (state.reference as PlainDate).month, day: 1 }).daysInMonth };
+        case "day": {
+            const reference = state.reference as PlainDate;
+            const month = state.parts.month;
+            // Segments are typed in locale order, so the month or the year may still be blank.
+            // Bounding the day by the placeholder's year would put 29 February out of reach in
+            // month/day/year locales; allow the longest the segment can ever be and let
+            // materialization reject a day the finished date cannot hold.
+            if (month == null) return { min: 1, max: 31 };
+            const daysIn = (year: number) => reference.with({ year, month, day: 1 }).daysInMonth;
+            const year = state.parts.year;
+            return { min: 1, max: year == null ? Math.max(daysIn(LEAP_PROBE_YEAR), daysIn(COMMON_PROBE_YEAR)) : daysIn(year) };
+        }
         case "hour": {
             const cycle = fieldHourCycle(options);
             return { min: cycle === "h12" || cycle === "h24" ? 1 : 0, max: { h11: 11, h12: 12, h23: 23, h24: 24 }[cycle] };
@@ -107,16 +124,56 @@ export function segmentBounds<Kind extends FieldKind>(state: FieldState<Kind>, s
     }
 }
 
-function materialize<Kind extends FieldKind>(state: FieldState<Kind>, options: FieldOptions<Kind>): FieldValue<Kind> {
+/**
+ * Typed digits are taken literally: a day the month cannot hold is reported instead of silently
+ * clamped. Stepping and Home/End keep clamping, because a spinner that refuses to move is worse
+ * than one that lands on the last valid day.
+ */
+function materialize<Kind extends FieldKind>(state: FieldState<Kind>, options: FieldOptions<Kind>, overflow: "constrain" | "reject"): FieldValue<Kind> | null {
     const parts = state.parts;
-    if (state.kind === "date") return (state.reference as PlainDate).with({ year: parts.year!, month: parts.month!, day: parts.day! }, { overflow: "constrain" }) as FieldValue<Kind>;
+    if (state.kind === "date") {
+        try {
+            return (state.reference as PlainDate).with({ year: parts.year!, month: parts.month!, day: parts.day! }, { overflow }) as FieldValue<Kind>;
+        } catch {
+            return null;
+        }
+    }
     const cycle = fieldHourCycle(options);
     const hour = is12Hour(cycle) ? parts.hour! % 12 + parts.dayPeriod! * 12 : parts.hour! % 24;
     return (state.reference as PlainTime).with({ hour, minute: parts.minute!, second: parts.second ?? (state.reference as PlainTime).second }) as FieldValue<Kind>;
 }
 
+/**
+ * Decides what a set of segment values means once an edit has been applied. A half-typed segment
+ * (`buffer` still open) is a draft: `2` on the way to `2026` is not a year in the first century, so
+ * drafts never announce themselves invalid. Blur closes the draft and validates what is left.
+ */
+function settle<Kind extends FieldKind>(previous: FieldState<Kind>, next: FieldState<Kind>, options: FieldOptions<Kind>, overflow: "constrain" | "reject", effects: FieldEffect<Kind>[]): { state: FieldState<Kind>; effects: FieldEffect<Kind>[] } {
+    if (Object.values(next.parts).some((value) => value == null)) {
+        next.value = null;
+        if (previous.value !== null) effects.push({ type: "change", value: null });
+        return { state: next, effects };
+    }
+    const value = materialize(next, options, overflow);
+    const outOfBounds = value !== null && ((options.minValue && compareField(next.kind, value, options.minValue) < 0) || (options.maxValue && compareField(next.kind, value, options.maxValue) > 0));
+    const unavailable = value !== null && next.kind === "date" && options.isDateUnavailable?.(value as PlainDate);
+    if (value === null || outOfBounds || unavailable) {
+        const drafting = next.buffer !== null;
+        next.invalid = !drafting;
+        next.value = null;
+        if (!drafting) effects.push({ type: "invalid", reason: value === null ? "nonexistent" : unavailable ? "unavailable" : "range" });
+        if (previous.value !== null) effects.push({ type: "change", value: null });
+    } else {
+        next.value = value;
+        next.parts = next.buffer === null ? valueParts(next.kind, value, options) : next.parts;
+        if (previous.value === null || compareField(next.kind, previous.value, value) !== 0) effects.push({ type: "change", value });
+    }
+    return { state: next, effects };
+}
+
 export function transitionField<Kind extends FieldKind>(state: FieldState<Kind>, event: FieldEvent, options: FieldOptions<Kind> = {}): { state: FieldState<Kind>; effects: FieldEffect<Kind>[] } {
-    if (event.type === "BLUR") return { state: { ...state, buffer: null }, effects: [] };
+    // Only a DIGIT can leave a buffer open, so a pending draft is always literal typing.
+    if (event.type === "BLUR") return state.buffer === null ? { state, effects: [] } : settle(state, { ...state, buffer: null, invalid: false }, options, "reject", []);
     if (options.disabled || options.readOnly) return { state, effects: [] };
     const parts = { ...state.parts };
     let buffer: FieldState<Kind>["buffer"] = null;
@@ -151,26 +208,7 @@ export function transitionField<Kind extends FieldKind>(state: FieldState<Kind>,
             }
         }
     }
-    const next = { ...state, parts, buffer, invalid: false };
-    if (Object.values(parts).some((value) => value == null)) {
-        next.value = null;
-        if (state.value !== null) effects.push({ type: "change", value: null });
-        return { state: next, effects };
-    }
-    const value = materialize(next, options);
-    const outOfBounds = (options.minValue && compareField(state.kind, value, options.minValue) < 0) || (options.maxValue && compareField(state.kind, value, options.maxValue) > 0);
-    const unavailable = state.kind === "date" && options.isDateUnavailable?.(value as PlainDate);
-    if (outOfBounds || unavailable) {
-        next.invalid = true;
-        next.value = null;
-        effects.push({ type: "invalid", reason: unavailable ? "unavailable" : "range" });
-        if (state.value !== null) effects.push({ type: "change", value: null });
-    } else {
-        next.value = value;
-        next.parts = buffer === null ? valueParts(state.kind, value, options) : parts;
-        if (state.value === null || compareField(state.kind, state.value, value) !== 0) effects.push({ type: "change", value });
-    }
-    return { state: next, effects };
+    return settle(state, { ...state, parts, buffer, invalid: false }, options, event.type === "DIGIT" ? "reject" : "constrain", effects);
 }
 
 const localizedDigits = new Map<string, string[]>();
@@ -199,7 +237,10 @@ export function connectField<Kind extends FieldKind>(state: FieldState<Kind>, op
         getSegmentProps: (segment: SegmentType) => {
             const value = state.parts[segment];
             const { min, max } = segmentBounds(state, segment, options);
-            let display = value == null ? text.placeholder(segment) : getNumberFormatter(options.locale, { useGrouping: false, minimumIntegerDigits: segment === "minute" || segment === "second" ? 2 : 1 }).format(value);
+            // Every numeric segment but the year pads to its placeholder width, so a field keeps
+            // one width from `mm/dd/yyyy` through `09/22/2026` instead of reflowing as it fills.
+            const minimumIntegerDigits = segment === "year" || segment === "dayPeriod" ? 1 : 2;
+            let display = value == null ? text.placeholder(segment) : getNumberFormatter(options.locale, { useGrouping: false, minimumIntegerDigits }).format(value);
             if (segment === "dayPeriod" && value != null) display = formatParts(temporal().PlainTime.from({ hour: value * 12 }), options.locale, { hour: "numeric", hourCycle: fieldHourCycle(options) }).find((part) => part.type === "dayPeriod")?.value ?? display;
             const valueText = value == null ? text.blank : segment === "month" ? formatDate((state.reference as PlainDate).with({ month: value }), options.locale, { month: "long" }) : display;
             return {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { renderToString } from "react-dom/server";
@@ -32,7 +32,7 @@ describe("React Calendar", () => {
             rerender(<Example defaultValue={value} />);
             dates.mockClear();
             numbers.mockClear();
-            fireEvent.keyDown(screen.getByRole("gridcell", { name: "Wednesday, September 16, 2026" }), { key: "ArrowRight" });
+            fireEvent.keyDown(screen.getByRole("button", { name: "Wednesday, September 16, 2026" }), { key: "ArrowRight" });
             rerender(<Example defaultValue={value} />);
             expect(dates).not.toHaveBeenCalled();
             expect(numbers).not.toHaveBeenCalled();
@@ -60,9 +60,9 @@ describe("React Calendar", () => {
     });
     it("uses defaultFocusedValue only for initial focus", () => {
         const { rerender } = render(<Example defaultFocusedValue={date().add({ days: 2 })} />);
-        expect(screen.getByRole("gridcell", { name: "Friday, September 18, 2026" }).tabIndex).toBe(0);
+        expect(screen.getByRole("button", { name: "Friday, September 18, 2026" }).tabIndex).toBe(0);
         rerender(<Example defaultFocusedValue={date().add({ days: 3 })} />);
-        expect(screen.getByRole("gridcell", { name: "Friday, September 18, 2026" }).tabIndex).toBe(0);
+        expect(screen.getByRole("button", { name: "Friday, September 18, 2026" }).tabIndex).toBe(0);
     });
 
     it("resets to the latest defaultValue", async () => {
@@ -74,7 +74,7 @@ describe("React Calendar", () => {
     });
     it("respects canceled form resets", async () => {
         const { container } = render(<form onReset={(event) => event.preventDefault()}><Example defaultValue={date()} /><button type="reset">Reset</button></form>);
-        await userEvent.click(screen.getByRole("gridcell", { name: "Thursday, September 17, 2026" }));
+        await userEvent.click(screen.getByRole("button", { name: "Thursday, September 17, 2026" }));
         await userEvent.click(screen.getByRole("button", { name: "Reset" }));
         expect(container.querySelector("input")?.value).toBe("2026-09-17");
     });
@@ -82,7 +82,7 @@ describe("React Calendar", () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
         render(<Example onChange={onChange} />);
-        const cell = screen.getByRole("gridcell", { name: "Wednesday, September 16, 2026" });
+        const cell = screen.getByRole("button", { name: "Wednesday, September 16, 2026" });
         cell.focus();
         await user.keyboard("{ArrowRight}{Enter}");
         expect(document.activeElement?.getAttribute("data-date")).toBe("2026-09-17");
@@ -95,7 +95,7 @@ describe("React Calendar", () => {
     it("does not mutate controlled values when the parent declines a change", async () => {
         const onChange = vi.fn();
         render(<Example value={date()} onChange={onChange} />);
-        await userEvent.click(screen.getByRole("gridcell", { name: "Thursday, September 17, 2026" }));
+        await userEvent.click(screen.getByRole("button", { name: "Thursday, September 17, 2026" }));
         expect(onChange).toHaveBeenCalledOnce();
         expect(screen.getByRole("gridcell", { selected: true }).getAttribute("data-date")).toBe("2026-09-16");
     });
@@ -103,11 +103,54 @@ describe("React Calendar", () => {
     it("keeps out-of-range cells perceivable but not selectable", async () => {
         const onChange = vi.fn();
         render(<Example onChange={onChange} maxValue={date()} />);
-        const cell = screen.getByRole("gridcell", { name: "Thursday, September 17, 2026" });
+        const cell = screen.getByRole("button", { name: "Thursday, September 17, 2026" });
         expect((cell as HTMLButtonElement).disabled).toBe(false);
         expect(cell.getAttribute("aria-disabled")).toBe("true");
         await userEvent.click(cell);
         expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("keeps grid semantics on the cell and the control in a real button", async () => {
+        render(<Example defaultValue={date()} />);
+        const cell = screen.getByRole("gridcell", { selected: true });
+        expect(cell.tagName).toBe("DIV");
+        expect(cell.hasAttribute("aria-label")).toBe(false);
+        const trigger = within(cell).getByRole("button");
+        expect(trigger.tagName).toBe("BUTTON");
+        expect(trigger.hasAttribute("role")).toBe(false);
+        expect(trigger.getAttribute("aria-label")).toBe("Wednesday, September 16, 2026");
+        expect(trigger.getAttribute("data-part")).toBe("cell-trigger");
+        expect(trigger.getAttribute("data-selected")).toBe("");
+    });
+
+    it("lets a custom cell supply its own trigger", async () => {
+        const onChange = vi.fn();
+        render(<Calendar.Root locale="en-US" placeholderValue={date()} onChange={onChange}><Calendar.Grid><Calendar.GridBody>{(cellDate) => <Calendar.Cell date={cellDate}><Calendar.CellTrigger>{`day ${cellDate.day}`}</Calendar.CellTrigger></Calendar.Cell>}</Calendar.GridBody></Calendar.Grid></Calendar.Root>);
+        await userEvent.click(screen.getByRole("button", { name: "Thursday, September 17, 2026" }));
+        expect(screen.getByRole("gridcell", { selected: true }).textContent).toBe("day 17");
+        expect(onChange.mock.lastCall?.[0].toString()).toBe("2026-09-17");
+    });
+
+    it("requires a cell around a trigger", () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            expect(() => render(<Calendar.Root placeholderValue={date()}><Calendar.CellTrigger /></Calendar.Root>)).toThrow("Calendar.Cell");
+        } finally { logged.mockRestore(); }
+    });
+
+    it("gives the paging buttons a visible default that follows the reading direction", () => {
+        const points = (name: string) => screen.getByRole("button", { name }).querySelector("polyline")?.getAttribute("points");
+        const { rerender } = render(<Example />);
+        const previous = points("Previous month");
+        const next = points("Next month");
+        expect(previous).toBeTruthy();
+        expect(previous).not.toBe(next);
+        rerender(<Example dir="rtl" />);
+        expect(points("Previous month")).toBe(next);
+        expect(points("Next month")).toBe(previous);
+        cleanup();
+        render(<Calendar.Root placeholderValue={date()}><Calendar.Header><Calendar.PrevButton>Back</Calendar.PrevButton></Calendar.Header></Calendar.Root>);
+        expect(screen.getByRole("button", { name: "Previous month" }).textContent).toBe("Back");
     });
 
     it("honors controlled focus and parent value updates", async () => {
@@ -130,7 +173,7 @@ describe("React Calendar", () => {
 
     it("resets uncontrolled form values through Temporal state", async () => {
         const { container } = render(<form><Example defaultValue={date()} /></form>);
-        await userEvent.click(screen.getByRole("gridcell", { name: "Thursday, September 17, 2026" }));
+        await userEvent.click(screen.getByRole("button", { name: "Thursday, September 17, 2026" }));
         fireEvent.reset(container.querySelector("form")!);
         await waitFor(() => expect(container.querySelector("input")?.value).toBe("2026-09-16"));
     });

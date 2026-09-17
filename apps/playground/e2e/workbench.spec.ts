@@ -15,7 +15,7 @@ test("renders the Calendar and local image without layout overflow", async ({ pa
 });
 
 test("keyboard navigation paginates and commits Temporal dates", async ({ page }) => {
-    await page.getByRole("gridcell", { name: "Wednesday, September 16, 2026" }).focus();
+    await page.getByRole("button", { name: "Wednesday, September 16, 2026" }).focus();
     await page.keyboard.press("PageDown");
     await expect(page.getByRole("grid")).toHaveAttribute("aria-label", "October 2026");
     await page.keyboard.press("Enter");
@@ -24,7 +24,7 @@ test("keyboard navigation paginates and commits Temporal dates", async ({ page }
 
 test("range selection emits a complete inclusive span", async ({ page }) => {
     await page.getByRole("button", { name: "RangeCalendar", exact: true }).click();
-    await page.getByRole("gridcell", { name: "Wednesday, September 16, 2026" }).focus();
+    await page.getByRole("button", { name: "Wednesday, September 16, 2026" }).focus();
     await page.keyboard.press("Enter");
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowRight");
@@ -69,7 +69,7 @@ test("locale and non-ISO changes keep the grid usable", async ({ page }) => {
     await expect(page.locator('[data-scope="calendar"][data-part="root"]')).toHaveAttribute("dir", "rtl");
     await page.getByLabel("Calendar system").selectOption("hebrew");
     await expect(page.getByRole("gridcell")).toHaveCount(42);
-    await page.getByRole("gridcell").filter({ hasNot: page.locator(":disabled") }).nth(15).click();
+    await page.locator('[data-part="cell-trigger"]:not([aria-disabled="true"])').nth(15).click();
     await expect(page.getByTestId("value-output")).toContainText("u-ca=hebrew");
 });
 

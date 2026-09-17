@@ -9,6 +9,7 @@ export interface Translations {
     chooseDate: string;
     unavailable: string;
     invalidRange: string;
+    nonexistentDate: string;
     rangeSeparator: string;
     blank: string;
     selected: (value: string) => string;
@@ -22,6 +23,17 @@ export interface Translations {
     dayPeriod: string;
 }
 
+/** Placeholder widths match the digits each segment accepts, so filling a field does not reflow it. */
+const segmentPlaceholders: Record<SegmentName, string> = {
+    year: "yyyy",
+    month: "mm",
+    day: "dd",
+    hour: "hh",
+    minute: "mm",
+    second: "ss",
+    dayPeriod: "--",
+};
+
 export const translations: Translations = {
     previousMonth: "Previous month",
     nextMonth: "Next month",
@@ -29,10 +41,11 @@ export const translations: Translations = {
     chooseDate: "Choose date",
     unavailable: "Unavailable",
     invalidRange: "Value is outside the allowed range",
+    nonexistentDate: "That date does not exist",
     rangeSeparator: " - ",
     blank: "blank",
     selected: (value) => `Selected ${value}`,
-    placeholder: (segment) => (segment === "year" ? "yyyy" : "--"),
+    placeholder: (segment) => segmentPlaceholders[segment],
     year: "Year",
     month: "Month",
     day: "Day",
@@ -85,13 +98,26 @@ export function resolveWeekStart(locale?: string, override?: number): number {
     return resolved.getWeekInfo?.().firstDay ?? resolved.weekInfo?.firstDay ?? 1;
 }
 
+/**
+ * ICU versions disagree on the separator before AM/PM: newer data emits U+202F where older data
+ * emits a plain space. Node and the browser rarely ship the same ICU, so the raw output would
+ * hydrate as a mismatch. Collapsing both no-break spaces keeps server and client markup identical.
+ */
+function normalizeSpaces(value: string): string {
+    return value.includes("\u202F") || value.includes("\u00A0") ? value.replace(/[\u202F\u00A0]/g, " ") : value;
+}
+
 export function formatDate(value: PlainDate | PlainDateTime, locale?: string, options: Intl.DateTimeFormatOptions = {}): string {
     const display = value.calendarId === "iso8601" ? value.withCalendar("gregory") : value;
     const formatter = getDateTimeFormatter(locale, { ...options, calendar: display.calendarId });
-    return (formatter as unknown as { format: (value: PlainDate | PlainDateTime) => string }).format(display);
+    return normalizeSpaces((formatter as unknown as { format: (value: PlainDate | PlainDateTime) => string }).format(display));
 }
 
 export function formatParts(value: PlainDate | PlainTime, locale: string | undefined, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatPart[] {
     const formatter = getDateTimeFormatter(locale, options);
-    return (formatter as unknown as { formatToParts: (value: PlainDate | PlainTime) => Intl.DateTimeFormatPart[] }).formatToParts(value);
+    const parts = (formatter as unknown as { formatToParts: (value: PlainDate | PlainTime) => Intl.DateTimeFormatPart[] }).formatToParts(value);
+    return parts.map((part) => {
+        const normalized = normalizeSpaces(part.value);
+        return normalized === part.value ? part : { ...part, value: normalized };
+    });
 }

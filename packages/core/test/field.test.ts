@@ -35,6 +35,64 @@ describe("segmented fields", () => {
         expect(connectField(createField("date", { placeholderValue: date() }), { id: "field" }).getSegmentProps("year").display).toBe("yyyy");
     });
 
+    it("reaches 29 February when the year is typed last", () => {
+        // The placeholder year is common, so bounding the day by it would make the leap day
+        // unreachable in month/day/year locales.
+        let state = createField("date", { placeholderValue: Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 }) });
+        for (const event of [
+            { type: "DIGIT", segment: "month", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 9 },
+        ] as const) state = transitionField(state, event).state;
+        expect(state.parts.day).toBe(29);
+        for (const digit of [2, 0, 2, 8]) state = transitionField(state, { type: "DIGIT", segment: "year", digit }).state;
+        expect(state.value?.toString()).toBe("2028-02-29");
+    });
+
+    it("reports a typed day the finished month cannot hold instead of clamping it", () => {
+        let state = createField("date", { placeholderValue: Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 }) });
+        for (const event of [
+            { type: "DIGIT", segment: "month", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 9 },
+            { type: "DIGIT", segment: "year", digit: 2 },
+            { type: "DIGIT", segment: "year", digit: 0 },
+            { type: "DIGIT", segment: "year", digit: 2 },
+        ] as const) state = transitionField(state, event).state;
+        const result = transitionField(state, { type: "DIGIT", segment: "year", digit: 6 });
+        expect(result.effects).toContainEqual({ type: "invalid", reason: "nonexistent" });
+        expect(result.state.value).toBeNull();
+        expect(result.state.invalid).toBe(true);
+        expect(result.state.parts.day).toBe(29);
+    });
+
+    it("stays quiet while a segment is still being typed and reports the draft on blur", () => {
+        const options = { value: date(), minValue: Temporal.PlainDate.from({ year: 2024, month: 1, day: 1 }), maxValue: Temporal.PlainDate.from({ year: 2024, month: 12, day: 31 }) };
+        let state = createField("date", options);
+        const effects = [];
+        // 2, 20 and 202 are drafts on the way to 2026, not years in the first three centuries.
+        for (const digit of [2, 0, 2]) {
+            const result = transitionField(state, { type: "DIGIT", segment: "year", digit }, options);
+            state = result.state;
+            effects.push(...result.effects);
+        }
+        expect(effects.filter((effect) => effect.type === "invalid")).toEqual([]);
+        expect(state.invalid).toBe(false);
+        const blurred = transitionField(state, { type: "BLUR" }, options);
+        expect(blurred.effects).toContainEqual({ type: "invalid", reason: "range" });
+        expect(blurred.state.buffer).toBeNull();
+        expect(transitionField(blurred.state, { type: "BLUR" }, options).effects).toEqual([]);
+    });
+
+    it("pads every numeric segment but the year to its placeholder width", () => {
+        const api = connectField(createField("date", { value: Temporal.PlainDate.from({ year: 2026, month: 9, day: 2 }) }), { id: "field", locale: "en-US" });
+        expect(api.getSegmentProps("month").display).toBe("09");
+        expect(api.getSegmentProps("day").display).toBe("02");
+        expect(api.getSegmentProps("year").display).toBe("2026");
+        const blank = connectField(createField("date", { placeholderValue: date() }), { id: "field", locale: "en-US" });
+        expect(["month", "day", "year"].map((segment) => blank.getSegmentProps(segment as "month").display)).toEqual(["mm", "dd", "yyyy"]);
+    });
+
     it("constrains days when editing a complete date", () => {
         const result = transitionField(createField("date", { value: date() }), { type: "STEP", segment: "month", direction: 1 });
         expect(result.state.value?.toString()).toBe("2024-02-29");

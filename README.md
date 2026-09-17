@@ -72,6 +72,13 @@ Chrona always uses `globalThis.Temporal`. The guard runs when an operation
 needs Temporal, not at module import. This keeps tree-shaking and SSR imports
 safe. Missing Temporal produces an actionable `ChronaError`.
 
+The runtime and the TypeScript types are separate concerns. `chrona-core`'s
+declarations reference `temporal-spec/global`, so importing anything from
+Chrona also brings the ambient `Temporal` namespace into scope: the examples
+below write `Temporal.PlainDate` with no types import of their own. A file that
+needs those types without importing Chrona should add `import "temporal-spec/global"`
+or list `temporal-spec/global` under `compilerOptions.types`.
+
 Native support is capability-dependent, not just version-dependent. The local
 Node 26.4.0 runtime supports ISO operations but throws `Not yet implemented`
 for non-ISO arithmetic. The native test command reports these as explicit
@@ -110,8 +117,20 @@ export function BookingCalendar() {
 }
 ```
 
-Supply your own CSS, including any visually-hidden utility. `GridHeader` and
-`GridBody` accept render functions for custom cells. For multi-month views,
+Supply your own CSS, including any visually-hidden utility.
+
+`Calendar.Cell` renders the `role="gridcell"` wrapper and `Calendar.CellTrigger`
+renders the button inside it; a cell given no children renders its trigger
+automatically. They are separate elements so the control stays a button in the
+accessibility tree instead of having its role overridden by the grid. Both carry
+the state attributes, so either can take the visual treatment, but the
+interactive element is `[data-part="cell-trigger"]`. `PrevButton` and
+`NextButton` have an `aria-label` and no text of their own, so with no children
+they render a default chevron pointing the way they page in the resolved reading
+direction; pass children to replace it. `DatePicker.Trigger` does the same
+with a calendar glyph.
+
+`GridHeader` and `GridBody` accept render functions for custom cells. For multi-month views,
 set `numberOfMonths` and render one `Calendar.Grid monthIndex={index}` per
 month. `useCalendar()` exposes the controller and month list for custom shells.
 `translations.rangeSeparator` customizes the multi-month heading separator.
@@ -143,20 +162,38 @@ segments come from Intl. Numeric editing accepts ASCII and localized digits,
 not full strings. Paste/drop input is rejected. Arrow keys step segments,
 Home/End choose segment bounds, Left/Right move focus, and Delete/Backspace
 clear segments. DateField currently supports ISO/Gregorian years 1-9999.
+Blank segments read `mm/dd/yyyy` and `hh:mm`, and every filled numeric segment
+except the year is zero-padded, so a field keeps one width as it fills.
+
+Typed digits are literal; stepping clamps. The day segment accepts 29 before the
+year is known, so month/day/year locales can reach the leap day, and a finished
+date the calendar cannot hold reports `onInvalid("nonexistent")` rather than
+sliding silently to 28 February. Arrow keys, Home, and End still clamp the day to
+its month, because a spinner that refuses to move is worse than one that lands on
+the last valid day.
+
+Validation waits for a segment to finish. `2`, `20`, and `202` on the way to
+`2026` are drafts, not years in the first three centuries, so they raise nothing;
+a draft still invalid when the field loses focus is reported on blur. The
+`onInvalid` reasons are `"range"`, `"unavailable"`, and `"nonexistent"`.
+
 Mount `LiveRegion` (also available on DatePicker) to announce invalid edits;
-style it with your own visually-hidden utility. `translations.invalidRange`
-and `translations.unavailable` customize feedback, while `onInvalid` remains
-available for application validation UI. Valid edits, clearing, and resets
-clear the announcement. Externally supplied `invalid` is application-owned and
-does not generate an edit announcement.
+style it with your own visually-hidden utility. `translations.invalidRange`,
+`translations.unavailable`, and `translations.nonexistentDate` customize
+feedback, while `onInvalid` remains available for application validation UI.
+Valid edits, clearing, and resets clear the announcement. Externally supplied
+`invalid` is application-owned and does not generate an edit announcement.
 
 TimeField accepts `hourCycle` (`h11`, `h12`, `h23`, `h24`) and `granularity`
 (`minute`, `second`). Day periods support arrow stepping and A/P shortcuts;
 localized day-period text typing and IME composition are not implemented.
 Hidden seconds and subseconds are retained when editing a supplied value.
 
-DatePicker composes the same field and Calendar behavior. `open`,
-`defaultOpen`, and `onOpenChange` control its native dialog. Modal behavior is
+DatePicker composes the same field and Calendar behavior, and accepts every
+`DateField` prop. `placeholderValue` is one of them: it sets the reference date
+the segments and the calendar open on before a value exists, so supply it (or
+`value`/`defaultValue`) rather than letting the picker fall back to today.
+`open`, `defaultOpen`, and `onOpenChange` control its native dialog. Modal behavior is
 the default; `modal={false}` opts out of inertness and focus trapping.
 Escape/outside pointer dismissal and selection return focus to the trigger.
 Popover anchors to its trigger by default, flips above when it fits, and shifts
@@ -171,6 +208,40 @@ rejecting a controlled open/close request does not move focus. Core
 `transitionPicker` emits only `openChange`; the experimental unused `focus`
 effect has been removed. Dialog label references follow mounted `DatePicker.Label`
 parts; an explicit `aria-label` or `aria-labelledby` can supply a custom name.
+
+## Server Rendering
+
+Chrona's components hold state and read `globalThis.Temporal` while rendering,
+so in Server Component frameworks such as the Next.js App Router they belong in
+a module marked `"use client"`.
+
+The polyfill import is a side effect, which means it has to land in the *client*
+bundle. Importing `temporal-polyfill/global` from a Server Component file only
+installs Temporal on the server. Put it at the top of a `"use client"` module
+that always loads — a providers file, for example — so it runs before hydration:
+
+```tsx
+// app/providers.tsx
+"use client";
+
+import "temporal-polyfill/global";
+import { ChronaProvider } from "chrona-react";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <ChronaProvider locale="en-US" timeZone="Europe/Copenhagen">{children}</ChronaProvider>;
+}
+```
+
+For deterministic markup, supply the same reference date, value, locale, and
+time zone on server and client. `timeZone` matters because today is resolved at
+render time, and a server in another zone marks a different cell.
+
+Segment literals are normalized before they reach the DOM. `Intl` puts U+202F
+before AM/PM on newer ICU data and a plain space on older data, and Node and the
+browser rarely ship the same ICU, so a 12-hour `TimeField` would otherwise
+hydrate with a whitespace mismatch in that one literal. Chrona collapses U+202F
+and U+00A0 to a plain space on both sides; forcing `hourCycle="h23"` is not
+needed to make a field hydrate.
 
 ## Ranges, Forms, And Validation
 
@@ -195,9 +266,6 @@ Use `value`/`onChange` or `defaultValue`/`onChange`; do not switch modes during
 a component's lifetime. Supply `focusedValue`/`onFocusedValueChange` for a
 controlled Calendar cursor, or `defaultFocusedValue` to set its initial cursor
 without controlling it. Later changes to `defaultFocusedValue` are ignored.
-For deterministic SSR, supply the same reference
-date, value, locale, and time zone on server and client. In Server Component
-frameworks, consume the React package from a client component.
 
 Field props include `minValue`, `maxValue`, `disabled`, `readOnly`, `required`,
 `invalid`, `describedBy`, and `onInvalid`. Invalid edited values are not emitted
@@ -254,6 +322,10 @@ Use `data-scope`, `data-part`, and state attributes such as `data-selected`,
 `data-outside-month`, `data-in-range`, `data-range-start`, `data-range-end`,
 `data-preview`, `data-invalid`, and `data-placeholder`.
 Composed pickers retain the scopes of the primitives they reuse.
+Date cells are two parts: `cell` is the `role="gridcell"` wrapper and
+`cell-trigger` is the button that takes focus, hover, and the click. Both carry
+the state attributes. The default icons are `data-part="chevron"` on the paging
+buttons and `data-part="trigger-icon"` on the picker trigger.
 
 Layout and button parts support `asChild` with event/ref composition. Input
 segments, hidden inputs, and the native dialog intentionally retain their HTML
