@@ -2,5 +2,11 @@ packages:
   - packages/*
   - apps/*
 
+# pnpm >= 12 gate. Without an explicit decision here, `pnpm install` exits
+# non-zero with ERR_PNPM_IGNORED_BUILDS on a clean machine such as CI.
+allowBuilds:
+  esbuild: true
+
+# Equivalent gate for pnpm 10/11.
 onlyBuiltDependencies:
   - esbuild
