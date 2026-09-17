@@ -28,12 +28,34 @@ churn in a behavior fix.
   and package contents before releasing. Never publish the private playground.
 - Run all gates, the real-device/screen-reader matrix, and inspect package
   tarballs for accidental assets or secrets.
-- Configure npm trusted publishing through the actual repository's CI identity
-  with provenance, or an approved provenance-enabled publication workflow.
-  Require 2FA on maintainer accounts and least-privilege access. Do not put npm
-  credentials in source files or agent prompts.
 - Review the public API and data-attribute compatibility before tagging v1.
 
-Release automation is not configured to publish automatically. Publishing,
-signing tags, creating commits, and changing repository/account settings require
-explicit maintainer authorization.
+## Publishing
+
+`.github/workflows/release.yml` publishes `@chrona/core` and `@chrona/react` on
+a `v*` tag, with provenance. Releases run in CI because provenance requires an
+OIDC token; do not publish from a maintainer's machine. The workflow verifies
+the tag against both package versions, runs `pnpm check`, and publishes core
+before react so the workspace dependency resolves. The private playground is
+never published.
+
+To cut a release, bump both package versions, commit, then push the tag:
+
+```sh
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+Authentication is a deliberate two-stage arrangement:
+
+- **First publish of any package** uses the `NPM_TOKEN` secret on the `release`
+  environment. npm only exposes trusted-publisher settings on a package that
+  already exists, so a brand-new package cannot have one.
+- **Every release after that** should use trusted publishing. Add this
+  repository and `release.yml` as a trusted publisher in each package's npm
+  settings, then delete `NPM_TOKEN` — the workflow already requests the
+  `id-token` permission it needs.
+
+Use a granular access token scoped to these packages only, require 2FA on
+maintainer accounts, and keep npm credentials out of source files and agent
+prompts.
