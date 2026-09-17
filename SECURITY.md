@@ -1,18 +1,29 @@
 # Security Policy
 
-Chrona 0.1.x is experimental. Security fixes target the latest experimental
-version; no supported stable release or response-time guarantee exists yet.
+Chrona 0.1.x is experimental. Security fixes target the latest 0.1.x release.
+There is no supported stable release, long-term support branch, or guaranteed
+response time yet.
+
+## Supported Versions
+
+| Version | Supported |
+| --- | --- |
+| 0.1.x | Yes, as the current experimental line |
+| < 0.1.0 | No |
+
+## Reporting A Vulnerability
+
+Report privately through the repository's Security tab:
+[Report a vulnerability](https://github.com/devlinduldulao/chrona/security/advisories/new).
+Private vulnerability reporting is enabled on this repository.
 
 Do not disclose suspected vulnerabilities, credentials, or exploit details in
-public issues. When this project has a canonical GitHub repository with private
-vulnerability reporting enabled, use its Security tab to report privately.
-Until then, obtain a private reporting channel directly from the maintainer;
-this workspace does not specify an email address or promise a working service.
+public issues, pull requests, or discussions.
 
 Include affected versions, runtime and framework versions, reproduction steps,
 impact, and a minimal non-sensitive example. Coordinate disclosure with the
 maintainer before publishing details.
 
-Before a public release, the maintainer must enable and verify the private
-reporting channel and replace this provisional policy with the actual supported
-versions and contact process.
+Expect an acknowledgement as maintainer availability allows; this is a
+volunteer-maintained experimental project and no response-time commitment is
+offered. Supported versions and this process will be revisited before v1.
