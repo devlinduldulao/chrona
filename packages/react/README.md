@@ -1,10 +1,10 @@
-# @chrona/react
+# chrona-react
 
 Headless, Temporal-native React date and time primitives. No legacy `Date`
 values, no free-form date parsing, and no CSS — you own every pixel.
 
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
-[`@chrona/core`](https://www.npmjs.com/package/@chrona/core).
+[`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
 > **Status: experimental 0.1.0.** Public APIs and styling attributes are not
 > frozen for v1. Automated axe checks pass, but no screen-reader compatibility
@@ -13,7 +13,7 @@ Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 ## Install
 
 ```sh
-npm install @chrona/react
+npm install chrona-react
 ```
 
 React 18 or 19. Both are gated in CI.
@@ -33,7 +33,7 @@ import "temporal-polyfill/global";
 "use client";
 
 import { useState } from "react";
-import { Calendar, ChronaProvider } from "@chrona/react";
+import { Calendar, ChronaProvider } from "chrona-react";
 
 export function BookingCalendar() {
   const [value, setValue] = useState<Temporal.PlainDate | null>(null);
@@ -87,11 +87,11 @@ return focus to the trigger.
 
 | Export | Subpath | Notes |
 | --- | --- | --- |
-| `Calendar` | `@chrona/react/calendar` | Single or multi-month grid |
-| `RangeCalendar` | `@chrona/react/range-calendar` | Inclusive `{ start, end }`; draft first endpoint |
-| `DateField` | `@chrona/react/date-field` | Locale-ordered segments; ISO/Gregorian years 1–9999 |
-| `TimeField` | `@chrona/react/time-field` | `hourCycle` h11/h12/h23/h24, minute or second granularity |
-| `DatePicker` | `@chrona/react/date-picker` | Field plus calendar in a native dialog |
+| `Calendar` | `chrona-react/calendar` | Single or multi-month grid |
+| `RangeCalendar` | `chrona-react/range-calendar` | Inclusive `{ start, end }`; draft first endpoint |
+| `DateField` | `chrona-react/date-field` | Locale-ordered segments; ISO/Gregorian years 1–9999 |
+| `TimeField` | `chrona-react/time-field` | `hourCycle` h11/h12/h23/h24, minute or second granularity |
+| `DatePicker` | `chrona-react/date-picker` | Field plus calendar in a native dialog |
 | `ChronaProvider` | — | Ambient `locale` and `timeZone` |
 
 A barrel export is also available. Matching hooks — `useCalendar`,

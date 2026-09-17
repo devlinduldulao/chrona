@@ -8,8 +8,8 @@
         "node": ">=22"
     },
     "scripts": {
-        "dev": "pnpm --filter @chrona/playground dev",
-        "build": "pnpm --filter @chrona/core build && pnpm --filter @chrona/react build && pnpm --filter @chrona/playground build",
+        "dev": "pnpm --filter chrona-playground dev",
+        "build": "pnpm --filter chrona-core build && pnpm --filter chrona-react build && pnpm --filter chrona-playground build",
         "test": "vitest run",
         "test:watch": "vitest",
         "coverage": "vitest run --coverage",

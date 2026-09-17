@@ -1,5 +1,5 @@
 import * as React from "react";
-import { computeAnchorPosition, containTabFocus, transitionPicker, translations, type PlainDate, type PickerEvent } from "@chrona/core";
+import { computeAnchorPosition, containTabFocus, transitionPicker, translations, type PlainDate, type PickerEvent } from "chrona-core";
 import { Calendar, type CalendarProps } from "./calendar";
 import { DateField, type DateFieldProps } from "./date-field";
 import { Part, composeEvent, type PartProps } from "./part";

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createRange, createStore, formatDate, getRangeCellProps, transitionRange, translations, validateRange, type DateRange, type PlainDate, type RangeEvent } from "@chrona/core";
+import { createRange, createStore, formatDate, getRangeCellProps, transitionRange, translations, validateRange, type DateRange, type PlainDate, type RangeEvent } from "chrona-core";
 import { Calendar, CalendarSurface, useCalendar, type CalendarProps } from "./calendar";
 import { Part, composeEvent, type PartProps } from "./part";
 import { useFormReset, type HiddenInputProps } from "./form";

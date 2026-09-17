@@ -40,9 +40,9 @@ and [SECURITY.md](SECURITY.md) for the provisional reporting policy.
 
 | Package | Contents |
 | --- | --- |
-| `@chrona/core` | Pure Calendar, range, field, and picker transitions; prop getters; locale utilities; external store; focus effect helper |
-| `@chrona/react` | `Calendar`, `RangeCalendar`, `DateField`, `TimeField`, `DatePicker`, hooks, and `ChronaProvider` |
-| `@chrona/playground` | Private Vite workbench; owns all CSS, icons, and the optional runtime polyfill |
+| `chrona-core` | Pure Calendar, range, field, and picker transitions; prop getters; locale utilities; external store; focus effect helper |
+| `chrona-react` | `Calendar`, `RangeCalendar`, `DateField`, `TimeField`, `DatePicker`, hooks, and `ChronaProvider` |
+| `chrona-playground` | Private Vite workbench; owns all CSS, icons, and the optional runtime polyfill |
 
 Library output is ESM with declarations and source maps, targeting ES2022.
 React 18+ is the peer contract. CI runs the suite against React 19 (the
@@ -79,7 +79,7 @@ Chrona does not switch runtimes behind the application's back.
 "use client";
 
 import { useState } from "react";
-import { Calendar, ChronaProvider } from "@chrona/react";
+import { Calendar, ChronaProvider } from "chrona-react";
 
 export function BookingCalendar() {
   const [value, setValue] = useState<Temporal.PlainDate | null>(null);

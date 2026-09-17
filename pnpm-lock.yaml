@@ -190,10 +190,10 @@ importers:
 
   apps/playground:
     dependencies:
-      '@chrona/core':
+      chrona-core:
         specifier: workspace:*
         version: link:../../packages/core
-      '@chrona/react':
+      chrona-react:
         specifier: workspace:*
         version: link:../../packages/react
       lucide-react:
@@ -217,7 +217,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@chrona/core':
+      chrona-core:
         specifier: workspace:^
         version: link:../core
       react:

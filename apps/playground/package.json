@@ -1,5 +1,5 @@
 {
-    "name": "@chrona/playground",
+    "name": "chrona-playground",
     "private": true,
     "type": "module",
     "scripts": {
@@ -8,8 +8,8 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "@chrona/core": "workspace:*",
-        "@chrona/react": "workspace:*",
+        "chrona-core": "workspace:*",
+        "chrona-react": "workspace:*",
         "lucide-react": "^0.468.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",

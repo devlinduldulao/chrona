@@ -1,7 +1,7 @@
 import { cloneElement, isValidElement, useId, useState, type ReactElement, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, CalendarRange, Check, ChevronRight, Clock3, Code2, Copy, Eye, Layers, RotateCcw, SlidersHorizontal, TextCursorInput, Trash2 } from "lucide-react";
-import { Calendar, ChronaProvider, DateField, DatePicker, RangeCalendar, TimeField } from "@chrona/react";
-import type { DateRange, HourCycle, PlainDate, PlainTime } from "@chrona/core";
+import { Calendar, ChronaProvider, DateField, DatePicker, RangeCalendar, TimeField } from "chrona-react";
+import type { DateRange, HourCycle, PlainDate, PlainTime } from "chrona-core";
 
 const components = [
     { name: "Calendar", icon: CalendarDays, type: "Temporal.PlainDate" },
@@ -56,7 +56,7 @@ export function App({ engine, nativeAvailable }: { engine: "native" | "polyfill"
     const gridOptions = { ...shared, fixedWeeks, numberOfMonths: months, pagedNavigation: true, calendar, placeholderValue: reference };
     const header = <Calendar.Header><Calendar.PrevButton title="Previous month"><ArrowLeft size={17} /></Calendar.PrevButton><Calendar.Heading /><Calendar.NextButton title="Next month"><ArrowRight size={17} /></Calendar.NextButton></Calendar.Header>;
     const grid = (index: number) => <Calendar.Grid key={index} monthIndex={index}>{months > 1 && <Calendar.Heading />}<Calendar.GridHeader /><Calendar.GridBody /></Calendar.Grid>;
-    const source = `import { ${active} } from "@chrona/react";\n\n<${active}.Root\n  value={value}\n  onChange={setValue}\n  locale="${locale}"${isGrid ? `\n  calendar="${calendar}"\n  fixedWeeks={${fixedWeeks}}` : ""}\n>\n${isGrid ? `  <${active}.Header>\n    <${active}.PrevButton />\n    <${active}.Heading />\n    <${active}.NextButton />\n  </${active}.Header>\n  <${active}.Grid>\n    <${active}.GridHeader />\n    <${active}.GridBody />\n  </${active}.Grid>` : `  <${active}.Label>Appointment</${active}.Label>\n  <${active}.Field />${active === "DatePicker" ? "\n  <DatePicker.Trigger />\n  <DatePicker.Popover>\n    <DatePicker.Calendar />\n  </DatePicker.Popover>" : ""}\n  <${active}.HiddenInput name="appointment" />`}\n</${active}.Root>`;
+    const source = `import { ${active} } from "chrona-react";\n\n<${active}.Root\n  value={value}\n  onChange={setValue}\n  locale="${locale}"${isGrid ? `\n  calendar="${calendar}"\n  fixedWeeks={${fixedWeeks}}` : ""}\n>\n${isGrid ? `  <${active}.Header>\n    <${active}.PrevButton />\n    <${active}.Heading />\n    <${active}.NextButton />\n  </${active}.Header>\n  <${active}.Grid>\n    <${active}.GridHeader />\n    <${active}.GridBody />\n  </${active}.Grid>` : `  <${active}.Label>Appointment</${active}.Label>\n  <${active}.Field />${active === "DatePicker" ? "\n  <DatePicker.Trigger />\n  <DatePicker.Popover>\n    <DatePicker.Calendar />\n  </DatePicker.Popover>" : ""}\n  <${active}.HiddenInput name="appointment" />`}\n</${active}.Root>`;
 
     return <div className="workbench">
         <aside className="sidebar">
@@ -68,7 +68,7 @@ export function App({ engine, nativeAvailable }: { engine: "native" | "polyfill"
 
         <main>
             <header className="topbar"><div className="breadcrumb"><span>Workbench</span><ChevronRight size={13} /><strong>{active}</strong></div><label className="engine"><span className="engine-dot" /><span className="sr-only">Temporal engine</span><select aria-label="Temporal engine" value={engine} onChange={(event) => { location.search = `?temporal=${event.target.value}`; }}><option value="polyfill">Temporal polyfill</option><option value="native" disabled={!nativeAvailable}>Native Temporal</option></select></label></header>
-            <section className="page-heading"><div><div className="package-name">@chrona/react</div><h1>{active}</h1></div><span className="value-type">{component.type}</span></section>
+            <section className="page-heading"><div><div className="package-name">chrona-react</div><h1>{active}</h1></div><span className="value-type">{component.type}</span></section>
             <div className="workspace-body">
                 <section className="preview-column" aria-label="Component preview">
                     <div className="preview-toolbar"><div className="tabs" role="tablist" aria-label="Workbench view"><button type="button" role="tab" id="preview-tab" aria-controls="preview-panel" aria-selected={tab === "preview"} onClick={() => setTab("preview")}><Eye size={15} />Preview</button><button type="button" role="tab" id="api-tab" aria-controls="api-panel" aria-selected={tab === "api"} onClick={() => setTab("api")}><Code2 size={15} />API</button></div><button type="button" className="icon-button" title="Reset values" aria-label="Reset values" onClick={reset}><RotateCcw size={16} /></button></div>
@@ -100,7 +100,7 @@ export function App({ engine, nativeAvailable }: { engine: "native" | "polyfill"
                 })}</select></Setting>}{active === "TimeField" && <Setting label="Hour cycle"><select value={hourCycle} onChange={(event) => setHourCycle(event.target.value as HourCycle)}><option value="h12">12-hour (1-12)</option><option value="h23">24-hour (0-23)</option><option value="h11">12-hour (0-11)</option><option value="h24">24-hour (1-24)</option></select></Setting>}</div>
                     <div className="inspector-section"><span className="section-label">BEHAVIOR</span>{isGrid && <><Setting label="Visible months"><select value={months} onChange={(event) => setMonths(Number(event.target.value))}><option value="1">1 month</option><option value="2">2 months</option></select></Setting><label className="toggle-row"><span>Fixed weeks</span><input type="checkbox" checked={fixedWeeks} onChange={(event) => setFixedWeeks(event.target.checked)} /></label></>}{active === "TimeField" && <label className="toggle-row"><span>Show seconds</span><input type="checkbox" checked={seconds} onChange={(event) => setSeconds(event.target.checked)} /></label>}<label className="toggle-row"><span>Disabled</span><input type="checkbox" checked={disabled} onChange={(event) => setDisabled(event.target.checked)} /></label><label className="toggle-row"><span>Read only</span><input type="checkbox" checked={readOnly} onChange={(event) => setReadOnly(event.target.checked)} /></label></div>
                     {active !== "TimeField" && <div className="inspector-section"><span className="section-label">CONSTRAINTS</span><label className="toggle-row"><span>Weekends unavailable</span><input type="checkbox" checked={weekends} onChange={(event) => setWeekends(event.target.checked)} /></label><label className="toggle-row"><span>Limit to Sep 16 - Nov 16</span><input type="checkbox" checked={bounded} onChange={(event) => setBounded(event.target.checked)} /></label></div>}
-                    <div className="inspector-meta"><span>PACKAGE</span><code>@chrona/react</code><span>VALUE MODEL</span><code>{component.type}</code></div>
+                    <div className="inspector-meta"><span>PACKAGE</span><code>chrona-react</code><span>VALUE MODEL</span><code>{component.type}</code></div>
                 </aside>
             </div>
             <footer className="app-footer"><span>Chrona <span className="footer-slash">/</span> Component workbench</span><span>v0.1.0</span></footer>

@@ -5,14 +5,14 @@
     "fixed": [],
     "linked": [
         [
-            "@chrona/core",
-            "@chrona/react"
+            "chrona-core",
+            "chrona-react"
         ]
     ],
     "access": "public",
     "baseBranch": "main",
     "updateInternalDependencies": "patch",
     "ignore": [
-        "@chrona/playground"
+        "chrona-playground"
     ]
 }

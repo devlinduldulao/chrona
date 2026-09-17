@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { Translations } from "@chrona/core";
+import type { Translations } from "chrona-core";
 
 export interface ChronaConfig {
     locale?: string;

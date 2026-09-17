@@ -32,7 +32,7 @@ churn in a behavior fix.
 
 ## Publishing
 
-`.github/workflows/release.yml` publishes `@chrona/core` and `@chrona/react` on
+`.github/workflows/release.yml` publishes `chrona-core` and `chrona-react` on
 a `v*` tag, with provenance, through npm trusted publishing. There is no
 `NPM_TOKEN`: the registry trusts the workflow's OIDC identity, so no long-lived
 credential sits in the repository. Releases therefore run in CI, not from a

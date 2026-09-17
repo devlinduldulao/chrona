@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DatePicker } from "../src/index";
-import { transitionPicker } from "@chrona/core";
+import { transitionPicker } from "chrona-core";
 
 beforeAll(() => {
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };

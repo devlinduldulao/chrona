@@ -1,5 +1,5 @@
 import * as React from "react";
-import { calendarKeys, connectCalendar, createCalendar, createStore, formatDate, getNumberFormatter, resolveWeekStart, sameDate, syncCalendar, temporal, transitionCalendar, translations, weeksInMonthView, type CalendarEvent, type CalendarOptions, type PlainDate } from "@chrona/core";
+import { calendarKeys, connectCalendar, createCalendar, createStore, formatDate, getNumberFormatter, resolveWeekStart, sameDate, syncCalendar, temporal, transitionCalendar, translations, weeksInMonthView, type CalendarEvent, type CalendarOptions, type PlainDate } from "chrona-core";
 import { Part, composeEvent, type PartProps } from "./part";
 import { useChronaConfig } from "./provider";
 import { useFormReset, type HiddenInputProps } from "./form";

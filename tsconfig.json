@@ -22,13 +22,13 @@
             "temporal-polyfill/global"
         ],
         "paths": {
-            "@chrona/core": [
+            "chrona-core": [
                 "./packages/core/src/index.ts"
             ],
-            "@chrona/react": [
+            "chrona-react": [
                 "./packages/react/src/index.ts"
             ],
-            "@chrona/react/*": [
+            "chrona-react/*": [
                 "./packages/react/src/*.tsx"
             ]
         }

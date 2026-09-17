@@ -1,5 +1,5 @@
 {
-    "name": "@chrona/core",
+    "name": "chrona-core",
     "version": "0.1.0",
     "description": "Temporal-native headless date and time state machines",
     "type": "module",

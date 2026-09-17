@@ -16,7 +16,7 @@ export default defineConfig({
         { name: "webkit-mobile", use: { browserName: "webkit", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
     ],
     webServer: {
-        command: "pnpm --filter @chrona/playground build && pnpm --filter @chrona/playground preview --host 127.0.0.1 --port 4174 --strictPort",
+        command: "pnpm --filter chrona-playground build && pnpm --filter chrona-playground preview --host 127.0.0.1 --port 4174 --strictPort",
         url: "http://127.0.0.1:4174",
         reuseExistingServer: false,
     },

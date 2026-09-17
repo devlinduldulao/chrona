@@ -1,5 +1,5 @@
 import * as React from "react";
-import { connectField, createField, createStore, digitValue, fieldHourCycle, transitionField, translations, type FieldEvent, type FieldKind, type FieldOptions, type FieldValue, type SegmentType } from "@chrona/core";
+import { connectField, createField, createStore, digitValue, fieldHourCycle, transitionField, translations, type FieldEvent, type FieldKind, type FieldOptions, type FieldValue, type SegmentType } from "chrona-core";
 import { Part, composeEvent, type PartProps } from "./part";
 import { useChronaConfig } from "./provider";
 import { useFormReset, type HiddenInputProps } from "./form";

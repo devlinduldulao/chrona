@@ -42,10 +42,10 @@ jobs:
       # publish the workspace: specifier verbatim and break every consumer.
       - name: Pack
         run: |
-          pnpm --filter @chrona/core pack --pack-destination "$RUNNER_TEMP/packs"
-          pnpm --filter @chrona/react pack --pack-destination "$RUNNER_TEMP/packs"
+          pnpm --filter chrona-core pack --pack-destination "$RUNNER_TEMP/packs"
+          pnpm --filter chrona-react pack --pack-destination "$RUNNER_TEMP/packs"
 
-      # Core first: @chrona/react depends on it.
+      # Core first: chrona-react depends on it.
       - name: Publish
         run: |
           npm publish "$RUNNER_TEMP"/packs/chrona-core-*.tgz --access public --provenance

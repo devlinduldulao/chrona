@@ -1,4 +1,4 @@
-# @chrona/core
+# chrona-core
 
 Temporal-native, headless date and time state machines. No legacy `Date` values,
 no free-form date parsing, and no CSS.
@@ -6,7 +6,7 @@ no free-form date parsing, and no CSS.
 This is the framework-agnostic layer of [Chrona](https://github.com/devlinduldulao/chrona).
 It is plain TypeScript: pure transition functions, prop getters, and a tiny
 external store. It renders nothing. If you want React components, install
-[`@chrona/react`](https://www.npmjs.com/package/@chrona/react) instead — it is
+[`chrona-react`](https://www.npmjs.com/package/chrona-react) instead — it is
 built on this package.
 
 > **Status: experimental 0.1.0.** Public APIs are not frozen for v1. No
@@ -15,7 +15,7 @@ built on this package.
 ## Install
 
 ```sh
-npm install @chrona/core
+npm install chrona-core
 ```
 
 `temporal-spec` is a **type-only** dependency. No runtime date library, polyfill,
@@ -45,7 +45,7 @@ Every machine is a pure `(state, event, options) => { state, effects }`
 transition. You own storage, scheduling, and rendering.
 
 ```ts
-import { createCalendar, transitionCalendar, connectCalendar } from "@chrona/core";
+import { createCalendar, transitionCalendar, connectCalendar } from "chrona-core";
 
 const options = { locale: "en-US", value: null, placeholderValue: Temporal.Now.plainDateISO() };
 let state = createCalendar(options);
