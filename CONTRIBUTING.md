@@ -33,11 +33,10 @@ churn in a behavior fix.
 ## Publishing
 
 `.github/workflows/release.yml` publishes `@chrona/core` and `@chrona/react` on
-a `v*` tag, with provenance. Releases run in CI because provenance requires an
-OIDC token; do not publish from a maintainer's machine. The workflow verifies
-the tag against both package versions, runs `pnpm check`, and publishes core
-before react so the workspace dependency resolves. The private playground is
-never published.
+a `v*` tag, with provenance, through npm trusted publishing. There is no
+`NPM_TOKEN`: the registry trusts the workflow's OIDC identity, so no long-lived
+credential sits in the repository. Releases therefore run in CI, not from a
+maintainer's machine — provenance requires an OIDC token that only CI has.
 
 To cut a release, bump both package versions, commit, then push the tag:
 
@@ -46,16 +45,26 @@ git tag v0.1.1
 git push origin v0.1.1
 ```
 
-Authentication is a deliberate two-stage arrangement:
+The workflow verifies the tag against both package versions, refuses to publish
+a package marked private, and runs `pnpm check` before publishing. The private
+playground is never published.
 
-- **First publish of any package** uses the `NPM_TOKEN` secret on the `release`
-  environment. npm only exposes trusted-publisher settings on a package that
-  already exists, so a brand-new package cannot have one.
-- **Every release after that** should use trusted publishing. Add this
-  repository and `release.yml` as a trusted publisher in each package's npm
-  settings, then delete `NPM_TOKEN` — the workflow already requests the
-  `id-token` permission it needs.
+It packs with pnpm and publishes with npm, which is deliberate. pnpm rewrites
+the `workspace:` protocol to real versions at pack time but has no OIDC
+support; npm has OIDC but would publish the `workspace:` specifier verbatim and
+break every consumer. Each tool does the half it can.
 
-Use a granular access token scoped to these packages only, require 2FA on
-maintainer accounts, and keep npm credentials out of source files and agent
-prompts.
+### Trusted publisher setup
+
+npm only exposes trusted-publisher settings on a package that already exists,
+so this could not be configured before the first release. 0.1.0 was published
+manually to bootstrap the packages. Before the next release, add the trusted
+publisher once per package — in each package's npm settings, name this
+repository and `release.yml` — after which tagging is the whole process.
+
+npm does not validate a trusted-publisher configuration when you save it; a
+wrong repository or workflow filename only surfaces as a failure at publish
+time.
+
+Require 2FA on maintainer accounts, keep access least-privilege, and keep npm
+credentials out of source files and agent prompts.
