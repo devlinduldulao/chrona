@@ -1,0 +1,48 @@
+{
+    "name": "@chrona/core",
+    "version": "0.1.0",
+    "description": "Temporal-native headless date and time state machines",
+    "type": "module",
+    "license": "MIT",
+    "author": "Devlin Duldulao",
+    "homepage": "https://github.com/devlinduldulao/chrona#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/devlinduldulao/chrona.git",
+        "directory": "packages/core"
+    },
+    "bugs": {
+        "url": "https://github.com/devlinduldulao/chrona/issues"
+    },
+    "keywords": [
+        "temporal",
+        "date",
+        "time",
+        "headless",
+        "state-machine",
+        "calendar",
+        "datepicker",
+        "i18n",
+        "accessibility"
+    ],
+    "sideEffects": false,
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsup src/index.ts --format esm --dts --sourcemap --clean --target es2022"
+    },
+    "dependencies": {
+        "temporal-spec": "^0.3.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

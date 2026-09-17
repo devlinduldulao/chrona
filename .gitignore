@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+playwright-report/
+test-results/
+
+AUDIT.md
+chrona-overview.md
+PLANS.md

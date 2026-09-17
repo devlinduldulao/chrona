@@ -1,0 +1,75 @@
+{
+    "name": "@chrona/react",
+    "version": "0.1.0",
+    "description": "Headless Temporal-native React date and time primitives",
+    "type": "module",
+    "license": "MIT",
+    "author": "Devlin Duldulao",
+    "homepage": "https://github.com/devlinduldulao/chrona#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/devlinduldulao/chrona.git",
+        "directory": "packages/react"
+    },
+    "bugs": {
+        "url": "https://github.com/devlinduldulao/chrona/issues"
+    },
+    "keywords": [
+        "temporal",
+        "date",
+        "time",
+        "headless",
+        "react",
+        "calendar",
+        "datepicker",
+        "daterangepicker",
+        "timepicker",
+        "i18n",
+        "accessibility",
+        "aria"
+    ],
+    "sideEffects": false,
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./calendar": {
+            "types": "./dist/calendar.d.ts",
+            "import": "./dist/calendar.js"
+        },
+        "./date-field": {
+            "types": "./dist/date-field.d.ts",
+            "import": "./dist/date-field.js"
+        },
+        "./time-field": {
+            "types": "./dist/time-field.d.ts",
+            "import": "./dist/time-field.js"
+        },
+        "./date-picker": {
+            "types": "./dist/date-picker.d.ts",
+            "import": "./dist/date-picker.js"
+        },
+        "./range-calendar": {
+            "types": "./dist/range-calendar.d.ts",
+            "import": "./dist/range-calendar.js"
+        }
+    },
+    "scripts": {
+        "build": "tsup src/index.ts src/calendar.tsx src/date-field.tsx src/time-field.tsx src/date-picker.tsx src/range-calendar.tsx --format esm --dts --sourcemap --clean --target es2022 --external react --external react-dom"
+    },
+    "dependencies": {
+        "@chrona/core": "workspace:^"
+    },
+    "peerDependencies": {
+        "react": ">=18.0.0",
+        "react-dom": ">=18.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
