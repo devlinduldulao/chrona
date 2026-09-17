@@ -59,4 +59,4 @@ cleanly across differing ICU versions; `hourCycle="h23"` is not a requirement.
 
 MonthPicker/YearPicker, DateTimeField, DateTimePicker, TimePicker,
 DateRangePicker, zoned fields/pickers, TimeZoneSelect. Public APIs are
-experimental at 0.1.x and not frozen for v1.
+experimental at 0.x and not frozen for v1.

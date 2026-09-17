@@ -6,9 +6,10 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.1.0.** Public APIs and styling attributes are not
-> frozen for v1. Automated axe checks pass, but no screen-reader compatibility
-> certification is claimed.
+> **Status: experimental 0.2.0.** Public APIs and styling attributes are not
+> frozen for v1; 0.2.0 changes the Calendar cell anatomy. See the
+> [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
+> compatibility certification is claimed.
 
 ## Install
 

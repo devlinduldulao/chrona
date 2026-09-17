@@ -9,7 +9,8 @@ external store. It renders nothing. If you want React components, install
 [`chrona-react`](https://www.npmjs.com/package/chrona-react) instead — it is
 built on this package.
 
-> **Status: experimental 0.1.0.** Public APIs are not frozen for v1. No
+> **Status: experimental 0.2.0.** Public APIs are not frozen for v1; 0.2.0
+> splits the calendar cell getters. See the [changelog](./CHANGELOG.md). No
 > screen-reader compatibility certification is claimed.
 
 ## Install

@@ -3,9 +3,11 @@
 Temporal-native, headless date and time primitives. No legacy `Date` values,
 no free-form date parsing, and no CSS in the published packages.
 
-**Status: experimental 0.1.0.** This is a working first release, not completion
-of the full [architecture roadmap](PLANS.md). Public APIs are not frozen for v1.
-No screen-reader compatibility certification is claimed.
+**Status: experimental 0.2.0.** Working releases, not completion of the full
+[architecture roadmap](PLANS.md). Public APIs are not frozen for v1, and 0.2.0
+changes the Calendar cell anatomy — see the
+[changelog](packages/react/CHANGELOG.md). No screen-reader compatibility
+certification is claimed.
 
 ```sh
 npm install chrona-react   # React primitives

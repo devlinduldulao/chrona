@@ -1,6 +1,6 @@
 # Security Policy
 
-Chrona 0.1.x is experimental. Security fixes target the latest 0.1.x release.
+Chrona 0.2.x is experimental. Security fixes target the latest 0.2.x release.
 There is no supported stable release, long-term support branch, or guaranteed
 response time yet.
 
@@ -8,8 +8,8 @@ response time yet.
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x | Yes, as the current experimental line |
-| < 0.1.0 | No |
+| 0.2.x | Yes, as the current experimental line |
+| < 0.2.0 | No |
 
 ## Reporting A Vulnerability
 
