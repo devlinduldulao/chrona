@@ -2,7 +2,9 @@ import * as React from "react";
 
 export type PartProps = React.HTMLAttributes<HTMLElement> & { asChild?: boolean };
 
-function setRef(ref: React.Ref<HTMLElement> | undefined, value: HTMLElement | null) {
+// React 19 ref callbacks may return a cleanup function; React 18 types say void,
+// which would narrow that result to never at the call sites below.
+function setRef(ref: React.Ref<HTMLElement> | undefined, value: HTMLElement | null): (() => void) | void {
     if (typeof ref === "function") return ref(value);
     if (ref) (ref as React.MutableRefObject<HTMLElement | null>).current = value;
 }

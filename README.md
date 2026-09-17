@@ -45,7 +45,9 @@ and [SECURITY.md](SECURITY.md) for the provisional reporting policy.
 | `@chrona/playground` | Private Vite workbench; owns all CSS, icons, and the optional runtime polyfill |
 
 Library output is ESM with declarations and source maps, targeting ES2022.
-React 18+ is the peer contract. Tests currently run with React 19.
+React 18+ is the peer contract. CI runs the suite against React 19 (the
+lockfile default) and against React 18.3.1 in a dedicated job, so the lower
+bound of the peer range is gated rather than assumed.
 `temporal-spec` is a **type-only dependency** of core; no runtime date library,
 polyfill, locale catalog, or positioning dependency is bundled into core.
 
@@ -253,9 +255,9 @@ segments, hidden inputs, and the native dialog intentionally retain their HTML
 elements. Auto-rendered grid rows and literals can be styled using data parts.
 Size targets, focus-ring styling, and visually hidden announcements are app-owned.
 
-Automated gates cover core/property tests, type rejection, React interactions,
-SSR output, axe, Chromium/Firefox/WebKit desktop interactions, and mobile-sized
-Chromium/WebKit interactions. Browser screenshots
+Automated gates cover core/property tests, type rejection, React interactions
+on React 18 and 19, SSR output, axe, Chromium/Firefox/WebKit desktop
+interactions, and mobile-sized Chromium/WebKit interactions. Browser screenshots
 are written to `test-results/`. NVDA, JAWS, VoiceOver, TalkBack, real virtual
 keyboards, and cross-browser manual release testing are still required.
 Automated axe success is not equivalent to complete accessibility certification.

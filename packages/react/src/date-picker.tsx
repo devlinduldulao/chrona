@@ -26,7 +26,7 @@ interface PickerContext {
     change: (value: PlainDate | null) => void;
     open: boolean;
     send: (event: PickerEvent) => void;
-    trigger: React.RefObject<HTMLElement | null>;
+    trigger: { current: HTMLElement | null };
     labelled: boolean;
     registerLabel: (present: boolean) => void;
 }
