@@ -138,6 +138,148 @@ Hidden inputs serialize with `.toString()` and are never read back.
 inputs do not take part in browser constraint validation — validate required,
 incomplete, or invalid values in your form layer before submission.
 
+## With shadcn/ui
+
+Chrona does not replace shadcn. Keep `Button`, `Popover`, `Label`, and `cn`.
+Replace the `react-day-picker` calendar and the native `<input type="time">`.
+Values stay `Temporal.PlainDate` / `Temporal.PlainTime` — do not convert through
+`Date`. Style days as `[data-part="cell-trigger"]`.
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { Calendar as ChronaCalendar, TimeField } from "chrona-react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+const calendarClassName = cn(
+  "bg-background p-3",
+  "[&_[data-part=header]]:mb-2 [&_[data-part=header]]:flex [&_[data-part=header]]:items-center [&_[data-part=header]]:justify-between",
+  "[&_[data-part=heading]]:text-sm [&_[data-part=heading]]:font-medium",
+  "[&_[data-part=grid-header]]:grid [&_[data-part=grid-header]]:grid-cols-7",
+  "[&_[data-part=header-cell]]:text-muted-foreground [&_[data-part=header-cell]]:text-center [&_[data-part=header-cell]]:text-[0.8rem]",
+  "[&_[data-part=row]]:grid [&_[data-part=row]]:grid-cols-7",
+  "[&_[data-part=cell-trigger]]:size-8 [&_[data-part=cell-trigger]]:w-full [&_[data-part=cell-trigger]]:rounded-md [&_[data-part=cell-trigger]]:text-sm",
+  "[&_[data-part=cell-trigger][data-selected]]:bg-primary [&_[data-part=cell-trigger][data-selected]]:text-primary-foreground",
+  "[&_[data-part=cell-trigger][data-today]]:bg-accent",
+  "[&_[data-part=cell-trigger][data-outside-month]]:text-muted-foreground [&_[data-part=cell-trigger][data-outside-month]]:opacity-50",
+);
+
+export function ShadcnCalendar({
+  value,
+  onChange,
+  placeholderValue,
+  className,
+}: {
+  value: Temporal.PlainDate | null;
+  onChange: (value: Temporal.PlainDate | null) => void;
+  placeholderValue: Temporal.PlainDate;
+  className?: string;
+}) {
+  return (
+    <ChronaCalendar.Root
+      value={value}
+      onChange={onChange}
+      placeholderValue={placeholderValue}
+      fixedWeeks
+      className={cn(calendarClassName, className)}
+    >
+      <ChronaCalendar.Header>
+        <ChronaCalendar.PrevButton asChild>
+          <Button variant="ghost" size="icon" className="size-8 p-0">
+            <ChevronLeftIcon className="size-4" />
+          </Button>
+        </ChronaCalendar.PrevButton>
+        <ChronaCalendar.Heading />
+        <ChronaCalendar.NextButton asChild>
+          <Button variant="ghost" size="icon" className="size-8 p-0">
+            <ChevronRightIcon className="size-4" />
+          </Button>
+        </ChronaCalendar.NextButton>
+      </ChronaCalendar.Header>
+      <ChronaCalendar.Grid>
+        <ChronaCalendar.GridHeader />
+        <ChronaCalendar.GridBody />
+      </ChronaCalendar.Grid>
+      <ChronaCalendar.LiveRegion className="sr-only" />
+    </ChronaCalendar.Root>
+  );
+}
+
+export function ShadcnDateTimePicker() {
+  const reference = Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 });
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState<Temporal.PlainDate | null>(null);
+  const [time, setTime] = useState<Temporal.PlainTime | null>(
+    Temporal.PlainTime.from("09:30:00"),
+  );
+
+  return (
+    <div className="flex gap-4">
+      <div className="flex flex-col gap-3">
+        <Label className="px-1">Date</Label>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-40 justify-start font-normal">
+              {date
+                ? date.toLocaleString("en-US", { dateStyle: "medium" })
+                : "Pick a date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <ShadcnCalendar
+              value={date}
+              placeholderValue={reference}
+              onChange={(next) => {
+                setDate(next);
+                setOpen(false);
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+      <TimeField.Root value={time} onChange={setTime} hourCycle="h23" granularity="second">
+        <TimeField.Label className="px-1">Time</TimeField.Label>
+        <TimeField.Field className="border-input bg-background inline-flex h-9 items-center rounded-md border px-3 text-sm shadow-xs [&_[data-part=segment]]:w-6 [&_[data-part=segment]]:bg-transparent [&_[data-part=segment]]:text-center" />
+      </TimeField.Root>
+    </div>
+  );
+}
+```
+
+Chrona's `DatePicker` already owns a native `<dialog>` — do not wrap it in
+shadcn `Popover`. Use `DatePicker.Trigger asChild` with `Button` instead:
+
+```tsx
+import { CalendarIcon } from "lucide-react";
+import { DatePicker } from "chrona-react";
+
+<DatePicker.Root value={date} onChange={setDate} placeholderValue={reference}>
+  <DatePicker.Label asChild>
+    <Label>Appointment</Label>
+  </DatePicker.Label>
+  <DatePicker.Field className="border-input inline-flex h-9 items-center rounded-md border px-3 text-sm" />
+  <DatePicker.Trigger asChild>
+    <Button variant="outline" size="icon">
+      <CalendarIcon className="size-4" />
+    </Button>
+  </DatePicker.Trigger>
+  <DatePicker.Popover className="bg-popover text-popover-foreground rounded-md border p-3 shadow-md">
+    <DatePicker.Calendar />
+  </DatePicker.Popover>
+</DatePicker.Root>
+```
+
+`asChild` uses the child's children, so pass an icon (or omit `asChild` and keep Chrona's default glyph).
+
 ## Notes
 
 - ESM with declarations and source maps, targeting ES2022.
