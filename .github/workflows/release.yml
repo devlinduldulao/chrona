@@ -6,8 +6,13 @@ name: Release
 #
 # Configure the trusted publisher once per package, in each package's npm
 # settings, naming this repository and this workflow file. That cannot be done
-# before a package exists, so 0.1.0 was published manually to bootstrap it;
-# CONTRIBUTING.md records the sequence.
+# before a package exists, so 0.1.0 was published manually to bootstrap it.
+#
+# That configuration is in place and publishing still fails: the registry issues
+# a credential and then refuses the upload with 403 "OIDC permission denied for
+# this action". Tagging is therefore NOT yet the whole process — every release so
+# far was published by hand. CONTRIBUTING.md lists the causes already ruled out;
+# read it before changing anything here.
 on:
   push:
     tags:

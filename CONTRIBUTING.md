@@ -71,7 +71,8 @@ trusted publisher registered and the registry issues a credential for each —
 POSTing the job's id token to
 `/-/npm/v1/oidc/token/exchange/package/<name>` returns `201` with a token — and
 the upload is still refused with `403 OIDC permission denied for this action`.
-0.1.0 and 0.2.0 were therefore published by hand and carry no attestation.
+0.1.0, 0.2.0 and 0.2.1 were therefore published by hand and carry no
+attestation.
 Treat a green Release run as unproven until this is fixed.
 
 These have each been tested and ruled out, so do not spend another release on
