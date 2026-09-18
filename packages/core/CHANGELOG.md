@@ -4,18 +4,24 @@
 
 ### Patch Changes
 
-- Publish through the release workflow so the packages carry a provenance
-  attestation.
+- Document that a providers-file `temporal-polyfill/global` import does not
+  order Next.js App Router SSR module init.
 
-  No library code changed from 0.2.0; `dist` is byte-identical. 0.1.0 and 0.2.0
-  were both published by hand because trusted publishing failed with
-  `403 OIDC permission denied for this action`, and a published version cannot be
-  attested after the fact. The cause was the npm account requiring two-factor
-  authentication for writes, which no automated credential can satisfy: the
-  registry issued the OIDC token and then refused to let it write. With the
-  account set to `auth-only`, the workflow can publish, so this is the first
-  release built and uploaded by CI with an attestation tying it to this
-  repository, commit, and workflow.
+  The providers import is what gets Temporal into the browser bundle before
+  hydration, but it does not decide the order Node evaluates modules in. A
+  `"use client"` file that reads `Temporal` at module scope — typically
+  `const reference = Temporal.PlainDate.from(...)` at the top of `page.tsx` —
+  can be evaluated during SSR before the providers file runs, and Node throws
+  `ReferenceError: Temporal is not defined`. Import the polyfill in that file
+  too, or construct the value inside the component body.
+
+  No runtime change; `dist` is byte-identical to 0.2.0. This release also puts
+  the `AGENTS.md` files on npm.
+
+  Published by hand, like 0.1.0 and 0.2.0, so it carries no provenance
+  attestation: trusted publishing still fails with
+  `403 OIDC permission denied for this action` even though the registry issues
+  the credential. CONTRIBUTING lists everything ruled out.
 
 ## 0.2.0
 
