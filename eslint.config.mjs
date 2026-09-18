@@ -8,5 +8,5 @@ export default tseslint.config(
     ...tseslint.configs.recommended,
     { files: ["**/*.{ts,tsx}"], rules: { "no-undef": "off" } },
     { files: ["packages/react/**/*.{ts,tsx}", "apps/playground/src/**/*.{ts,tsx}"], plugins: { "react-hooks": reactHooks }, rules: { "react-hooks/rules-of-hooks": "error", "react-hooks/exhaustive-deps": "error" } },
-    { files: ["scripts/*.mjs"], languageOptions: { globals: { process: "readonly", console: "readonly", globalThis: "readonly", fetch: "readonly", Buffer: "readonly" } } },
+    { files: ["scripts/*.mjs"], languageOptions: { globals: { process: "readonly", console: "readonly", globalThis: "readonly" } } },
 );

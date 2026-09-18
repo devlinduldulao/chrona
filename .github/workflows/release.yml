@@ -42,12 +42,6 @@ jobs:
 
       - run: pnpm check
 
-      # Temporary, for the 0.2.0 publish: the registry refuses to issue a
-      # credential and npm reports no auth, so this reports which precondition
-      # is missing. Remove once 0.2.0 is out.
-      - name: Diagnose publishing credentials
-        run: node scripts/diagnose-publish.mjs
-
       # pnpm packs, npm publishes. pnpm rewrites the workspace: protocol to real
       # versions at pack time but has no OIDC support; npm has OIDC but would
       # publish the workspace: specifier verbatim and break every consumer.
@@ -69,10 +63,7 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already published; skipping."
             else
-              # No --provenance: trusted publishing attests automatically, and asking
-              # for it explicitly is what the registry denies with "OIDC permission
-              # denied for this action".
-              npm publish "$tarball" --access public
+              npm publish "$tarball" --access public --provenance
             fi
           }
           publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz

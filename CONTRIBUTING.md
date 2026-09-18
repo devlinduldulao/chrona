@@ -66,5 +66,24 @@ npm does not validate a trusted-publisher configuration when you save it; a
 wrong repository or workflow filename only surfaces as a failure at publish
 time.
 
+**Trusted publishing does not work yet, as of 0.2.0.** Both packages have a
+trusted publisher registered and the registry issues a credential for each —
+the token exchange returns 201 — but the upload is still refused with
+`403 OIDC permission denied for this action`. Setting each package's
+`mfa=automation` did not change it, and neither did dropping `--provenance`,
+which npm applies on its own under trusted publishing. 0.2.0 was therefore
+published by hand, like 0.1.0, and carries no provenance attestation. Until the
+cause is found, expect to publish manually and treat a green Release run as
+unproven.
+
+Two things about that workflow are settled and should not be re-litigated. It
+must not pass `registry-url` to `actions/setup-node`: that writes
+`//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into the job's npmrc, and
+with no such secret npm sends an empty credential, takes a 404, and never
+attempts the OIDC exchange at all. And the `404` a missing trusted publisher
+produces is indistinguishable from a missing package, so diagnose by calling
+`/-/npm/v1/oidc/token/exchange/package/<name>` directly with the job's id token
+and reading the status.
+
 Require 2FA on maintainer accounts, keep access least-privilege, and keep npm
 credentials out of source files and agent prompts.
