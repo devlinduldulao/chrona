@@ -63,7 +63,7 @@ export function App({ engine, nativeAvailable }: { engine: "native" | "polyfill"
             <a className="brand" href="/" aria-label="Chrona home"><span className="brand-mark"><Clock3 size={23} strokeWidth={1.7} /></span><span>chrona<span className="brand-dot">.</span></span></a>
             <div className="nav-section">PRIMITIVES <span>05</span></div>
             <nav aria-label="Components">{components.map(({ name, icon: Icon }) => <button key={name} type="button" title={name} aria-label={name} aria-current={active === name ? "page" : undefined} className={active === name ? "nav-item active" : "nav-item"} onClick={() => { setActive(name); setTab("preview"); setCopied(false); }}><Icon size={18} /><span>{name}</span>{active === name && <ChevronRight size={14} className="nav-arrow" />}</button>)}</nav>
-            <div className="sidebar-bottom"><span className="release-dot" /><div><strong>0.2.0</strong><span>Experimental</span></div></div>
+            <div className="sidebar-bottom"><span className="release-dot" /><div><strong>0.2.1</strong><span>Experimental</span></div></div>
         </aside>
 
         <main>
@@ -103,7 +103,7 @@ export function App({ engine, nativeAvailable }: { engine: "native" | "polyfill"
                     <div className="inspector-meta"><span>PACKAGE</span><code>chrona-react</code><span>VALUE MODEL</span><code>{component.type}</code></div>
                 </aside>
             </div>
-            <footer className="app-footer"><span>Chrona <span className="footer-slash">/</span> Component workbench</span><span>v0.2.0</span></footer>
+            <footer className="app-footer"><span>Chrona <span className="footer-slash">/</span> Component workbench</span><span>v0.2.1</span></footer>
         </main>
     </div>;
 }

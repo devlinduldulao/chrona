@@ -1,5 +1,25 @@
 # chrona-react
 
+## 0.2.1
+
+### Patch Changes
+
+- Publish through the release workflow so the packages carry a provenance
+  attestation.
+
+  No library code changed from 0.2.0; `dist` is byte-identical. 0.1.0 and 0.2.0
+  were both published by hand because trusted publishing failed with
+  `403 OIDC permission denied for this action`, and a published version cannot be
+  attested after the fact. The cause was the npm account requiring two-factor
+  authentication for writes, which no automated credential can satisfy: the
+  registry issued the OIDC token and then refused to let it write. With the
+  account set to `auth-only`, the workflow can publish, so this is the first
+  release built and uploaded by CI with an attestation tying it to this
+  repository, commit, and workflow.
+
+- Updated dependencies
+  - chrona-core@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
