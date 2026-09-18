@@ -172,6 +172,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
+That covers the client bundle before hydration. It does not order Node module
+evaluation. If another `"use client"` file reads `Temporal` at module scope
+(`const reference = Temporal.PlainDate.from(...)` at the top of `page.tsx`),
+Next.js may evaluate that file during SSR before `providers.tsx` has run and
+throw `ReferenceError: Temporal is not defined`. Import the polyfill at the top
+of that file too, or move the call inside the component body:
+
+```tsx
+"use client";
+
+import "temporal-polyfill/global";
+import { Calendar } from "chrona-react";
+
+const REFERENCE = Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 });
+```
+
 Pass the same reference date, value, locale, and time zone on server and client.
 `timeZone` matters because today is resolved at render time, and a server in
 another zone marks a different cell.

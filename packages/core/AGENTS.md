@@ -7,7 +7,9 @@ https://github.com/devlinduldulao/chrona#readme
 ## Setup that is easy to get wrong
 
 1. **Runtime.** Chrona reads `globalThis.Temporal` and never installs it. Where
-   Temporal is not native, `import "temporal-polyfill/global"` before use.
+   Temporal is not native, `import "temporal-polyfill/global"` before use, in
+   the same module that first constructs Temporal values — a sibling providers
+   file does not order Node module init under Next.js SSR.
 2. **Types.** No extra import is needed: this package's declarations reference
    `temporal-spec/global`, so `Temporal.PlainDate` resolves as an ambient global
    in any file importing from Chrona.
