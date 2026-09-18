@@ -14,8 +14,14 @@ https://github.com/devlinduldulao/chrona#readme
 3. **Server Components.** These components hold state: mark their module
    `"use client"`. The polyfill import is a side effect, so it must reach the
    client bundle — put it at the top of a `"use client"` module that always
-   loads (a providers file), not in a Server Component.
-4. **Values are Temporal objects.** Strings and `Date` are rejected with a
+   loads (a providers file), not in a Server Component. That covers hydration.
+4. **SSR module init.** The providers import does not order Node module
+   evaluation. If another `"use client"` file reads `Temporal` at module scope
+   (`const reference = Temporal.PlainDate.from(...)` at the top of `page.tsx`),
+   Next.js may evaluate that file during SSR before `providers.tsx` has run and
+   throw `ReferenceError: Temporal is not defined`. Import the polyfill at the
+   top of *that* file too, or move the call inside the component body.
+5. **Values are Temporal objects.** Strings and `Date` are rejected with a
    `ChronaError`; there is no parsing layer.
 
 ## Anatomy
