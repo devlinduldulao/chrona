@@ -37,6 +37,24 @@ jobs:
 
       - run: pnpm check
 
+      # Temporary, for the 0.2.0 publish: the registry answers 404 and the log
+      # shows no OIDC exchange at all, so this reports which precondition is
+      # missing. Presence only, never values — this repository is public and
+      # these are credentials.
+      - name: Diagnose publishing credentials
+        run: |
+          set -u
+          state() { [ -n "${1:-}" ] && echo set || echo unset; }
+          echo "node $(node --version), npm $(npm --version) (trusted publishing needs npm >= 11.5.1)"
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL: $(state "${ACTIONS_ID_TOKEN_REQUEST_URL:-}")"
+          echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN: $(state "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}")"
+          echo "NPM_CONFIG_USERCONFIG: ${NPM_CONFIG_USERCONFIG:-unset}"
+          if [ -f "${NPM_CONFIG_USERCONFIG:-/nonexistent}" ]; then
+            echo "--- userconfig npmrc, every value masked ---"
+            sed 's/=.*/=<masked>/' "$NPM_CONFIG_USERCONFIG"
+            echo "--- end ---"
+          fi
+
       # pnpm packs, npm publishes. pnpm rewrites the workspace: protocol to real
       # versions at pack time but has no OIDC support; npm has OIDC but would
       # publish the workspace: specifier verbatim and break every consumer.
