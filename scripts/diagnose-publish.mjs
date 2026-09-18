@@ -43,13 +43,27 @@ for (const name of packages) {
         headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
     });
     const body = await exchange.text();
-    let detail;
+    let parsed;
     try {
-        const parsed = JSON.parse(body);
-        // Never print the body itself; a success carries a publish credential.
-        detail = parsed.message ?? parsed.error ?? `keys=${Object.keys(parsed).sort().join(",")}`;
+        parsed = JSON.parse(body);
     } catch {
-        detail = "non-JSON body";
+        console.log(`${name} exchange: HTTP ${exchange.status} — non-JSON body`);
+        continue;
     }
-    console.log(`${name} exchange: HTTP ${exchange.status} — ${detail}`);
+    if (!exchange.ok) {
+        console.log(`${name} exchange: HTTP ${exchange.status} — ${parsed.message ?? parsed.error}`);
+        continue;
+    }
+    // Never print the body itself; it carries a publish credential.
+    console.log(`${name} exchange: HTTP ${exchange.status} — ${parsed.token_type} credential, expires ${parsed.expires}`);
+
+    // The credential exists but the registry refuses to publish with it, so ask
+    // what it is actually allowed to do. Identity and policy, never the token.
+    const authed = (path) => fetch(`https://registry.npmjs.org${path}`, { headers: { Authorization: `Bearer ${parsed.token}` } });
+    const whoami = await authed("/-/whoami");
+    const who = await whoami.json().catch(() => ({}));
+    console.log(`  whoami: HTTP ${whoami.status} — ${who.username ?? who.message ?? "no username"}`);
+
+    const access = await authed(`/-/package/${name}/access`);
+    console.log(`  access policy: HTTP ${access.status} — ${(await access.text()).slice(0, 300)}`);
 }
