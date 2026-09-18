@@ -69,7 +69,10 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already published; skipping."
             else
-              npm publish "$tarball" --access public --provenance
+              # No --provenance: trusted publishing attests automatically, and asking
+              # for it explicitly is what the registry denies with "OIDC permission
+              # denied for this action".
+              npm publish "$tarball" --access public
             fi
           }
           publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz
