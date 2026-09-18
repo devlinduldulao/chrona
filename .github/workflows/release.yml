@@ -63,14 +63,7 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already published; skipping."
             else
-              # Publish the extracted directory rather than the tarball path.
-              # pnpm has already rewritten the workspace: specifiers inside it,
-              # so the manifest is correct either way, and a tarball path is the
-              # last remaining difference from a plain npm publish.
-              directory="$RUNNER_TEMP/extracted/$name"
-              mkdir -p "$directory"
-              tar -xzf $tarball -C "$directory" --strip-components=1
-              npm publish "$directory" --access public --provenance
+              npm publish "$tarball" --access public --provenance
             fi
           }
           publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz

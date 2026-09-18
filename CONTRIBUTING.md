@@ -66,15 +66,32 @@ npm does not validate a trusted-publisher configuration when you save it; a
 wrong repository or workflow filename only surfaces as a failure at publish
 time.
 
-**Trusted publishing does not work yet, as of 0.2.0.** Both packages have a
+**Trusted publishing does not work yet, as of 0.2.1.** Both packages have a
 trusted publisher registered and the registry issues a credential for each —
-the token exchange returns 201 — but the upload is still refused with
-`403 OIDC permission denied for this action`. Setting each package's
-`mfa=automation` did not change it, and neither did dropping `--provenance`,
-which npm applies on its own under trusted publishing. 0.2.0 was therefore
-published by hand, like 0.1.0, and carries no provenance attestation. Until the
-cause is found, expect to publish manually and treat a green Release run as
-unproven.
+POSTing the job's id token to
+`/-/npm/v1/oidc/token/exchange/package/<name>` returns `201` with a token — and
+the upload is still refused with `403 OIDC permission denied for this action`.
+0.1.0 and 0.2.0 were therefore published by hand and carry no attestation.
+Treat a green Release run as unproven until this is fixed.
+
+These have each been tested and ruled out, so do not spend another release on
+them:
+
+| Suspected | Evidence it is not the cause |
+| --- | --- |
+| Trusted publisher unregistered | Exchange returns `201` for both packages |
+| npm too old for OIDC | Runner has npm 11.19.0; OIDC needs >= 11.5.1 |
+| `id-token: write` missing | Both `ACTIONS_ID_TOKEN_REQUEST_*` are set in the job |
+| Claim mismatch | `sub` carries `repo:<owner>/chrona...:environment:release`, and the exchange accepts it |
+| Stale npmrc credential | Fixed separately; `NPM_CONFIG_USERCONFIG` is now unset |
+| Package requires 2FA | `npm access set mfa=automation` on both, no change |
+| Account requires 2FA for writes | `npm profile` moved from `auth-and-writes` to `auth-only`, no change |
+| Explicit `--provenance` | Removed; npm signs the statement either way, same 403 |
+| Publishing a tarball path | Published an extracted directory instead, same 403 |
+
+What remains is the registry's own authorization of a correctly issued
+credential, which is npm's side to explain. Report it with the exchange status
+and the 403 together, since the pair is what makes it unambiguous.
 
 Two things about that workflow are settled and should not be re-litigated. It
 must not pass `registry-url` to `actions/setup-node`: that writes
