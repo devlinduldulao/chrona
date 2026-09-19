@@ -1,6 +1,6 @@
 {
     "name": "chrona-react",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "description": "Headless Temporal-native React date and time primitives",
     "type": "module",
     "license": "MIT",

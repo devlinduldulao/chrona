@@ -11,6 +11,8 @@ export interface FieldOptions<Kind extends FieldKind> {
     minValue?: FieldValue<Kind>;
     maxValue?: FieldValue<Kind>;
     locale?: string;
+    /** Zone used to resolve today when no value or placeholder is given. */
+    timeZone?: string;
     dir?: "ltr" | "rtl";
     disabled?: boolean;
     readOnly?: boolean;
@@ -85,7 +87,7 @@ export function createField<Kind extends FieldKind>(kind: Kind, options: FieldOp
         if (isForeignTemporal(candidate, expected)) throw new ChronaError("TEMPORAL_MISMATCH", mixedTemporalMessage(name, expected));
         throw new ChronaError("INVALID_FIELD_VALUE", `${name} must be a Temporal.${expected}.`);
     }
-    const reference = options.value ?? options.placeholderValue ?? (kind === "date" ? platform.Now.plainDateISO() : platform.PlainTime.from({ hour: 12 })) as FieldValue<Kind>;
+    const reference = options.value ?? options.placeholderValue ?? (kind === "date" ? platform.Now.plainDateISO(options.timeZone) : platform.PlainTime.from({ hour: 12 })) as FieldValue<Kind>;
     if (kind === "date" && !["iso8601", "gregory"].includes((reference as PlainDate).calendarId)) {
         throw new ChronaError("UNSUPPORTED_FIELD_CALENDAR", "DateField currently supports ISO and Gregorian dates. Use Calendar for other calendar systems.");
     }
@@ -255,6 +257,50 @@ export function digitValue(key: string, locale?: string): number | null {
     return index >= 0 ? index : null;
 }
 
+/**
+ * The range a segment *announces*, which is not the range it accepts.
+ *
+ * `segmentBounds` governs typing, and narrowing it to `minValue`/`maxValue` would
+ * make an out-of-range year unreachable — you could no longer type 1999 into a
+ * field whose minimum is 2020 and be told it is out of range, which is the
+ * behaviour the field is built around. A screen reader, though, should hear the
+ * real range rather than "1 to 9999".
+ *
+ * A bound only narrows when every more significant segment already sits on the
+ * boundary, because that is the only time it is certainly true: with a minimum of
+ * 2020-05-10, January is impossible in 2020 but ordinary in 2021, so the month
+ * narrows only once the year is known to be 2020. A bound that is merely likely
+ * would mislead, so anything ambiguous — the hour under a 12-hour cycle, where
+ * segment 9 is both 09:00 and 21:00 — is left alone.
+ */
+function announcedBounds<Kind extends FieldKind>(state: FieldState<Kind>, segment: SegmentType, options: FieldOptions<Kind>, bounds: { min: number; max: number }): { min: number; max: number } {
+    const { minValue, maxValue } = options;
+    if (!minValue && !maxValue) return bounds;
+
+    /** Segment values of a boundary, in order of significance, or null when this segment cannot be read. */
+    const order: SegmentType[] = state.kind === "date" ? ["year", "month", "day"] : ["hour", "minute", "second"];
+    const index = order.indexOf(segment);
+    if (index === -1) return bounds;
+
+    const cycle = fieldHourCycle(options);
+    if (state.kind === "time" && segment === "hour" && cycle !== "h23") return bounds;
+
+    const narrow = (value: FieldValue<Kind> | undefined): number | undefined => {
+        if (!value) return undefined;
+        const boundary = value as unknown as Record<SegmentType, number>;
+        for (const name of order.slice(0, index)) {
+            const here = state.parts[name];
+            if (here == null || (name === "hour" && state.kind === "time" ? here % 24 : here) !== boundary[name]) return undefined;
+        }
+        return boundary[segment];
+    };
+
+    const min = narrow(minValue) ?? bounds.min;
+    const max = narrow(maxValue) ?? bounds.max;
+    // Never announce an impossible range; fall back rather than mislead.
+    return min > max ? bounds : { min: Math.max(min, bounds.min), max: Math.min(max, bounds.max) };
+}
+
 export function connectField<Kind extends FieldKind>(state: FieldState<Kind>, options: FieldOptions<Kind> & { id: string; labelId?: string; describedBy?: string }) {
     const text = { ...translations, ...options.translations };
     const scope = `${state.kind}-field`;
@@ -263,7 +309,7 @@ export function connectField<Kind extends FieldKind>(state: FieldState<Kind>, op
         getGroupProps: () => ({ role: "group" as const, "aria-labelledby": options.labelId, "aria-describedby": options.describedBy, "aria-invalid": options.invalid || state.invalid || undefined, "data-scope": scope, "data-part": "field", "data-invalid": options.invalid || state.invalid ? "" : undefined, "data-disabled": options.disabled ? "" : undefined, "data-readonly": options.readOnly ? "" : undefined, dir: options.dir }),
         getSegmentProps: (segment: SegmentType) => {
             const value = state.parts[segment];
-            const { min, max } = segmentBounds(state, segment, options);
+            const { min, max } = announcedBounds(state, segment, options, segmentBounds(state, segment, options));
             // Every numeric segment but the year pads to its placeholder width, so a field keeps
             // one width from `mm/dd/yyyy` through `09/22/2026` instead of reflowing as it fills.
             const minimumIntegerDigits = segment === "year" || segment === "dayPeriod" ? 1 : 2;

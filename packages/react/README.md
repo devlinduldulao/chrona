@@ -6,7 +6,7 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.3.3.** Public APIs and styling attributes are not
+> **Status: experimental 0.3.4.** Public APIs and styling attributes are not
 > frozen for v1. 0.3.0 changes when a field reports a value and leaves `today`
 > to the client; 0.2.0 changed the Calendar cell anatomy. See the
 > [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
@@ -299,7 +299,9 @@ import { DatePicker } from "chrona-react";
 ## Notes
 
 - ESM with declarations and source maps, targeting ES2022.
-- Size budgets, minified + gzip, excluding React: Calendar 6 kB, DatePicker 12 kB.
+- Size budgets, minified + gzip, excluding React: Calendar 7 kB, DatePicker 13 kB.
+  Raised from 6/12 in 0.3.4; the additions were hydration-safe `today`, soft-keyboard
+  input, cross-implementation diagnostics and accurate spinbutton ranges.
 - Blank segments read `mm/dd/yyyy` and `hh:mm`; filled numeric segments except
   the year are zero-padded, so a field keeps one width as it fills.
 - Typed digits are literal and stepping clamps: 29 February is reachable before

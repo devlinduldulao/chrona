@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectField, createField, dayPeriodValue, digitValue, transitionField } from "../src/index";
+import { connectField, createCalendar, createField, dayPeriodValue, digitValue, segmentBounds, transitionField } from "../src/index";
 
 const date = () => Temporal.PlainDate.from({ year: 2024, month: 1, day: 31 });
 
@@ -229,5 +229,80 @@ describe("a second Temporal implementation", () => {
         expect(() => createField("date", { value: new Date() as never })).toThrow(/must be a Temporal/);
         try { createField("date", { value: "2026-09-16" as never }); }
         catch (error) { expect((error as { code: string }).code).toBe("INVALID_FIELD_VALUE"); }
+    });
+});
+
+describe("what a segment announces", () => {
+    const date = (value: string) => Temporal.PlainDate.from(value);
+    const options = { locale: "en-US", minValue: date("2020-05-10"), maxValue: date("2030-08-20") };
+    const announced = (segment: "year" | "month" | "day", parts: Record<string, number | null>) => {
+        const base = createField("date", { ...options, value: date("2026-09-16") });
+        const props = connectField({ ...base, parts: { ...base.parts, ...parts } }, { ...options, id: "f" }).getSegmentProps(segment);
+        return [props["aria-valuemin"], props["aria-valuemax"]];
+    };
+
+    it("reports the real range rather than the widest one", () => {
+        expect(announced("year", {})).toEqual([2020, 2030]);
+    });
+
+    it("narrows a segment only once the boundary is actually reachable", () => {
+        // January is impossible in 2020 and ordinary in 2021, so the month holds
+        // its full range until the year says which of the two it is.
+        expect(announced("month", { year: 2026 })).toEqual([1, 12]);
+        expect(announced("month", { year: 2020 })).toEqual([5, 12]);
+        expect(announced("month", { year: 2030 })).toEqual([1, 8]);
+        expect(announced("day", { year: 2020, month: 9 })).toEqual([1, 30]);
+        expect(announced("day", { year: 2020, month: 5 })).toEqual([10, 31]);
+        expect(announced("day", { year: 2030, month: 8 })).toEqual([1, 20]);
+    });
+
+    it("leaves the 12-hour cycle alone, where a segment value means two times", () => {
+        const bounds = { locale: "en-US", minValue: Temporal.PlainTime.from("09:00"), maxValue: Temporal.PlainTime.from("17:00") };
+        const hour = (hourCycle: "h12" | "h23") => {
+            const state = createField("time", { ...bounds, hourCycle, value: Temporal.PlainTime.from("11:00") });
+            const props = connectField(state, { ...bounds, hourCycle, id: "f" }).getSegmentProps("hour");
+            return [props["aria-valuemin"], props["aria-valuemax"]];
+        };
+        expect(hour("h23"), "09..17 is unambiguous on a 24-hour clock").toEqual([9, 17]);
+        expect(hour("h12"), "segment 9 is both 09:00 and 21:00").toEqual([1, 12]);
+    });
+
+    it("does not narrow what can be typed", () => {
+        // Typing 1999 into a field whose minimum is 2020 has to stay possible, so
+        // that it can be reported as out of range rather than silently refused.
+        const state = createField("date", options);
+        expect(segmentBounds(state, "year", options)).toEqual({ min: 1, max: 9999 });
+        let typed = state;
+        for (const digit of [1, 9, 9, 9]) typed = transitionField(typed, { type: "DIGIT", segment: "year", digit }, options).state;
+        expect(typed.parts.year).toBe(1999);
+    });
+});
+
+describe("a runtime that cannot do the calendar", () => {
+    it("names the calendar and the runtime instead of throwing from deep inside a grid", () => {
+        const iso = Temporal.PlainDate.from("2026-09-16");
+        const crippled = Object.create(Object.getPrototypeOf(iso), {
+            ...Object.getOwnPropertyDescriptors(iso),
+            calendarId: { value: "hebrew" },
+            add: { value: () => { throw new RangeError("Temporal error: Not yet implemented."); } },
+            withCalendar: { value: function (this: unknown) { return this; } },
+            with: { value: function (this: unknown) { return this; } },
+        });
+        expect(() => createCalendar({ placeholderValue: crippled as never }))
+            .toThrow(/cannot do arithmetic on the hebrew calendar/);
+    });
+
+    it("stays out of the way of a runtime that can", () => {
+        expect(() => createCalendar({ placeholderValue: Temporal.PlainDate.from("2026-09-16"), calendar: "gregory" })).not.toThrow();
+    });
+});
+
+describe("the ambient time zone", () => {
+    it("decides a field's today, as it already decided a calendar's", () => {
+        const far = createField("date", { timeZone: "Pacific/Kiritimati" });
+        const near = createField("date", { timeZone: "Pacific/Niue" });
+        // The two zones are a day apart for most of any given day.
+        expect(Temporal.PlainDate.compare(far.reference as Temporal.PlainDate, near.reference as Temporal.PlainDate)).toBeGreaterThanOrEqual(0);
+        expect(far.reference.toString()).toBe(Temporal.Now.plainDateISO("Pacific/Kiritimati").toString());
     });
 });

@@ -54,7 +54,7 @@
         {
             "name": "React Calendar",
             "path": "packages/react/dist/calendar.js",
-            "limit": "6 kB",
+            "limit": "7 kB",
             "gzip": true,
             "ignore": [
                 "react",
@@ -64,7 +64,7 @@
         {
             "name": "React DatePicker",
             "path": "packages/react/dist/date-picker.js",
-            "limit": "12 kB",
+            "limit": "13 kB",
             "gzip": true,
             "ignore": [
                 "react",
@@ -74,7 +74,7 @@
         {
             "name": "Core",
             "path": "packages/core/dist/index.js",
-            "limit": "12 kB",
+            "limit": "8 kB",
             "gzip": true
         }
     ]

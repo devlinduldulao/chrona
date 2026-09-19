@@ -1,5 +1,29 @@
 # chrona-react
 
+## 0.3.4
+
+### Patch Changes
+
+- Three loose ends, all found while auditing and none of them reported yet.
+
+  - A segment announced the widest range it could ever hold, so a field limited to
+    2020–2030 told a screen reader its year ran from 1 to 9999. It now announces
+    the real range, narrowing month and day only once the more significant segments
+    put the boundary in reach. What can be _typed_ is unchanged: an out-of-range
+    year still has to be typeable so it can be reported as out of range.
+  - `createField` resolved today from the system zone while `createCalendar` used
+    the configured one, so `ChronaProvider`'s `timeZone` reached a Calendar and not
+    a DateField. `FieldOptions` now carries `timeZone` and honours it.
+  - A Temporal implementation that cannot do arithmetic on the chosen calendar —
+    Node's native one, for anything but `iso8601`, `gregory` included — failed from
+    `PlainDate.add` deep inside grid construction, naming neither the calendar nor
+    the runtime, and only on the server. `createCalendar` now probes once and
+    raises `CALENDAR_UNSUPPORTED` saying which calendar, which runtime, and why the
+    browser was fine.
+
+- Updated dependencies
+  - chrona-core@0.3.4
+
 ## 0.3.3
 
 ### Patch Changes

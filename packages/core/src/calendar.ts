@@ -60,12 +60,35 @@ function validateOptions(options: CalendarOptions): void {
     resolveWeekStart(options.locale, options.firstDayOfWeek);
 }
 
+/**
+ * Not every Temporal implementation can do arithmetic on every calendar. Node's
+ * native Temporal handles ISO and throws `Not yet implemented` for the rest —
+ * `gregory` included, which arrives by accident whenever a value is converted
+ * from a ZonedDateTime. The throw otherwise surfaces from `PlainDate.add` deep
+ * inside grid construction, naming neither the calendar nor the runtime, and
+ * only on the server: the same code works in a browser. One probe at creation
+ * turns that into a sentence.
+ */
+function assertCalendarArithmetic(anchor: PlainDate, calendar: string): void {
+    if (calendar === "iso8601") return;
+    try {
+        anchor.add({ days: 1 });
+    } catch (error) {
+        if (!(error instanceof RangeError) || !error.message.includes("Not yet implemented")) throw error;
+        throw new ChronaError(
+            "CALENDAR_UNSUPPORTED",
+            `This Temporal implementation cannot do arithmetic on the ${calendar} calendar, though another on the same page may. Use iso8601, or temporal-polyfill/full/global.`,
+        );
+    }
+}
+
 export function createCalendar(options: CalendarOptions = {}): CalendarState {
     validateOptions(options);
     const value = options.value ?? null;
     const anchor = options.focusedValue ?? value ?? options.placeholderValue ?? temporal().Now.plainDateISO(options.timeZone);
     const calendar = options.calendar ?? anchor.calendarId;
     const focusedValue = clampDate(anchor, options.minValue, options.maxValue).withCalendar(calendar);
+    assertCalendarArithmetic(focusedValue, calendar);
     return { value, focusedValue, visibleMonth: focusedValue.with({ day: 1 }) };
 }
 
