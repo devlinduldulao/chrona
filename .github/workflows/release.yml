@@ -1,18 +1,22 @@
 name: Release
 
-# Publishes on a v* tag, with provenance, via npm trusted publishing. No
-# NPM_TOKEN: the registry trusts this workflow's OIDC identity, so there is no
-# long-lived credential in the repository to leak or rotate.
+# Publishes on a v* tag, with provenance.
 #
-# Configure the trusted publisher once per package, in each package's npm
-# settings, naming this repository and this workflow file. That cannot be done
-# before a package exists, so 0.1.0 was published manually to bootstrap it.
+# This used npm trusted publishing and could not: GitHub issues an *immutable*
+# OIDC subject for repositories created after 2026-07-15 —
+# `repo:devlinduldulao@22025912/chrona@1374885228:environment:release` — and the
+# registry only matches the legacy `repo:<owner>/<repo>:...` form. The token
+# exchange returns 201 because it matches on the `repository` claim; the upload
+# is then refused with `403 OIDC permission denied for this action`. That is
+# npm/cli#9969, it is open, and the repository setting that would turn immutable
+# subjects off accepts a PUT and keeps its old value, so there is nothing to fix
+# on this side. See CONTRIBUTING.md before reopening this.
 #
-# That configuration is in place and publishing still fails: the registry issues
-# a credential and then refuses the upload with 403 "OIDC permission denied for
-# this action". Tagging is therefore NOT yet the whole process — every release so
-# far was published by hand. CONTRIBUTING.md lists the causes already ruled out;
-# read it before changing anything here.
+# So: a granular npm token in the NPM_TOKEN secret, scoped to these two packages
+# only. Provenance is unaffected — it needs `id-token: write` and a supported
+# CI, not trusted publishing — so releases are still attested. When npm/cli#9969
+# closes, drop the token, drop `registry-url` and `NODE_AUTH_TOKEN`, and delete
+# the secret.
 on:
   push:
     tags:
@@ -21,7 +25,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # provenance and trusted publishing
+  id-token: write # provenance
 
 jobs:
   publish:
@@ -31,16 +35,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          # Trusted publishing needs Node >=22.14 and npm >=11.5.1.
           node-version: 24
-          # No registry-url on purpose. It makes setup-node write
+          # Required for token auth: it writes
           # //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN} into the job's
-          # npmrc, and this workflow deliberately has no NODE_AUTH_TOKEN, so npm
-          # sends an empty credential, takes 404 from the registry, and never
-          # attempts the OIDC exchange. registry.npmjs.org is npm's default
-          # anyway; leaving auth unconfigured is what lets trusted publishing run.
+          # npmrc. The old rule against it held only while this workflow had no
+          # token to put there, which left npm sending an empty credential.
+          registry-url: https://registry.npmjs.org
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - run: pnpm install --frozen-lockfile
+
+      # A missing secret otherwise surfaces as ENEEDAUTH after a full build.
+      - name: Require a publish credential
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN}" ]; then
+            echo "::error::NPM_TOKEN is not set. Create a granular npm token with read and write on chrona-core and chrona-react, then add it to this repository's 'release' environment. CONTRIBUTING.md has the steps."
+            exit 1
+          fi
 
       - name: Verify the tag matches the package versions
         run: node scripts/verify-release.mjs "${{ github.ref_name }}"
@@ -48,7 +60,7 @@ jobs:
       - run: pnpm check
 
       # pnpm packs, npm publishes. pnpm rewrites the workspace: protocol to real
-      # versions at pack time but has no OIDC support; npm has OIDC but would
+      # versions at pack time but has no publish auth; npm has the auth but would
       # publish the workspace: specifier verbatim and break every consumer.
       - name: Pack
         run: |
@@ -59,6 +71,8 @@ jobs:
       # registry keeps a re-run, or a moved tag, from failing the release over
       # work that is in fact already done.
       - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
@@ -73,3 +87,15 @@ jobs:
           }
           publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz
           publish chrona-react "$RUNNER_TEMP"/packs/chrona-react-*.tgz
+
+      # A green run that skipped both packages is not a release. Prove the
+      # versions are actually on the registry before calling it done.
+      - name: Confirm the registry has them
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          for name in chrona-core chrona-react; do
+            published=$(npm view "$name@$version" version)
+            [ "$published" = "$version" ] || { echo "::error::$name@$version is not on the registry."; exit 1; }
+            echo "$name@$published is published."
+          done
