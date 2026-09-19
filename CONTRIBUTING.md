@@ -50,58 +50,85 @@ a package marked private, and runs `pnpm check` before publishing. The private
 playground is never published.
 
 It packs with pnpm and publishes with npm, which is deliberate. pnpm rewrites
-the `workspace:` protocol to real versions at pack time but has no OIDC
-support; npm has OIDC but would publish the `workspace:` specifier verbatim and
-break every consumer. Each tool does the half it can.
+the `workspace:` protocol to real versions at pack time but has no publish auth;
+npm has the auth but would publish the `workspace:` specifier verbatim and break
+every consumer. Each tool does the half it can.
 
-### Trusted publisher setup
+The run ends by reading both versions back off the registry. A Release run that
+skipped both packages is green and has published nothing, which is how 0.2.1
+looked after it was published by hand — the readback makes that impossible to
+mistake for a release.
 
-npm only exposes trusted-publisher settings on a package that already exists,
-so this could not be configured before the first release. 0.1.0 was published
-manually to bootstrap the packages. Before the next release, add the trusted
-publisher once per package — in each package's npm settings, name this
-repository and `release.yml` — after which tagging is the whole process.
+### Why this publishes with a token and not a trusted publisher
 
-npm does not validate a trusted-publisher configuration when you save it; a
-wrong repository or workflow filename only surfaces as a failure at publish
-time.
+Trusted publishing is registered for both packages and cannot work here, for a
+reason that is neither package's fault.
 
-**Trusted publishing does not work yet, as of 0.2.1.** Both packages have a
-trusted publisher registered and the registry issues a credential for each —
-POSTing the job's id token to
-`/-/npm/v1/oidc/token/exchange/package/<name>` returns `201` with a token — and
-the upload is still refused with `403 OIDC permission denied for this action`.
-0.1.0, 0.2.0 and 0.2.1 were therefore published by hand and carry no
-attestation.
-Treat a green Release run as unproven until this is fixed.
+GitHub issues an **immutable** OIDC subject for repositories created after
+2026-07-15. This one gets:
 
-These have each been tested and ruled out, so do not spend another release on
-them:
+```
+repo:devlinduldulao@22025912/chrona@1374885228:environment:release
+```
 
-| Suspected | Evidence it is not the cause |
-| --- | --- |
-| Trusted publisher unregistered | Exchange returns `201` for both packages |
-| npm too old for OIDC | Runner has npm 11.19.0; OIDC needs >= 11.5.1 |
-| `id-token: write` missing | Both `ACTIONS_ID_TOKEN_REQUEST_*` are set in the job |
-| Claim mismatch | `sub` carries `repo:<owner>/chrona...:environment:release`, and the exchange accepts it |
-| Stale npmrc credential | Fixed separately; `NPM_CONFIG_USERCONFIG` is now unset |
-| Package requires 2FA | `npm access set mfa=automation` on both, no change |
-| Account requires 2FA for writes | `npm profile` moved from `auth-and-writes` to `auth-only`, no change |
-| Explicit `--provenance` | Removed; npm signs the statement either way, same 403 |
-| Publishing a tarball path | Published an extracted directory instead, same 403 |
+The registry matches trusted publishers against the legacy
+`repo:<owner>/<repo>:...` form and does not understand the `@OWNER_ID/@REPO_ID`
+one. The token exchange still returns `201`, because that step matches on the
+`repository` claim — which is why this looked like a registry authorization bug
+for three releases — and the upload is then refused with
+`403 OIDC permission denied for this action`.
 
-What remains is the registry's own authorization of a correctly issued
-credential, which is npm's side to explain. Report it with the exchange status
-and the 403 together, since the pair is what makes it unambiguous.
+That is [npm/cli#9969](https://github.com/npm/cli/issues/9969), it is open, and
+it needs a registry-side change. The repository setting that would turn
+immutable subjects off cannot be used either: `PUT
+/repos/{owner}/{repo}/actions/oidc/customization/sub` with
+`use_immutable_subject: false` returns `200` and leaves the value at `true`.
+Confirm the state before reopening this:
 
-Two things about that workflow are settled and should not be re-litigated. It
-must not pass `registry-url` to `actions/setup-node`: that writes
-`//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into the job's npmrc, and
-with no such secret npm sends an empty credential, takes a 404, and never
-attempts the OIDC exchange at all. And the `404` a missing trusted publisher
-produces is indistinguishable from a missing package, so diagnose by calling
-`/-/npm/v1/oidc/token/exchange/package/<name>` directly with the job's id token
-and reading the status.
+```sh
+gh api /repos/devlinduldulao/chrona/actions/oidc/customization/sub
+```
+
+Every suspect chased before this — trusted publisher registration, npm version,
+`id-token: write`, the npmrc credential, per-package and per-account 2FA,
+explicit `--provenance`, publishing a tarball versus a directory — was
+downstream of the subject mismatch. None of them is worth testing again.
+
+**When npm/cli#9969 closes:** delete `registry-url` and `NODE_AUTH_TOKEN` from
+`release.yml`, delete the `NPM_TOKEN` secret, and revoke the token. Nothing else
+changes; provenance already works either way.
+
+### The publish credential
+
+`release.yml` needs an `NPM_TOKEN` secret. Use a **granular** access token, not
+a classic one, so it can reach these two packages and nothing else:
+
+1. npmjs.com → Access Tokens → Generate New Token → Granular Access Token.
+2. Packages and scopes: select `chrona-core` and `chrona-react`, permission
+   **Read and write**. Leave organizations empty.
+3. Set an expiry you will actually notice, and put its date in the changelog of
+   your own calendar — an expired token fails the release, not the build.
+4. Add it to this repository under Settings → Environments → `release` →
+   environment secrets, named `NPM_TOKEN`, or:
+
+   ```sh
+   gh secret set NPM_TOKEN --env release
+   ```
+
+Scoping the secret to the `release` environment rather than the repository keeps
+it out of every other workflow, including anything a pull request can reach.
+
+Provenance is unaffected by any of this: `npm publish --provenance` needs
+`id-token: write` and a recognised CI, not a trusted publisher, so releases
+published this way are still attested and show the verified badge on npm.
+
+An automation-style token is not blocked by account 2FA, so the account can go
+back to requiring 2FA for writes — it was moved to `auth-only` chasing the 403
+above, and that loosening bought nothing:
+
+```sh
+npm profile enable-2fa auth-and-writes
+```
 
 Require 2FA on maintainer accounts, keep access least-privilege, and keep npm
 credentials out of source files and agent prompts.
