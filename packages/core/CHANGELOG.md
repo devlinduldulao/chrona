@@ -1,5 +1,14 @@
 # chrona-core
 
+## 0.3.1
+
+### Patch Changes
+
+- Republish with a provenance attestation. 0.3.0 is the same code and carries none:
+  disabling npm's trusted publishing, which npm/cli#9969 makes unusable here, was
+  done by hiding GitHub's OIDC variables, and `--provenance` signs through those
+  same variables. Disabling it through `NPM_ID_TOKEN` instead leaves signing intact.
+
 ## 0.3.0
 
 ### Minor Changes

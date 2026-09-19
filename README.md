@@ -3,7 +3,7 @@
 Temporal-native, headless date and time primitives. No legacy `Date` values,
 no free-form date parsing, and no CSS in the published packages.
 
-**Status: experimental 0.3.0.** Working releases, not completion of the full
+**Status: experimental 0.3.1.** Working releases, not completion of the full
 [architecture roadmap](PLANS.md). Public APIs are not frozen for v1. 0.3.0
 changes when a field reports a value and takes `today` out of the server render;
 0.2.0 changed the Calendar cell anatomy — see the

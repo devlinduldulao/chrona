@@ -13,10 +13,11 @@ name: Release
 # on this side. See CONTRIBUTING.md before reopening this.
 #
 # So: a granular npm token in the NPM_TOKEN secret, scoped to these two packages
-# only. Releases carry no provenance attestation while that holds — see the
-# Publish step for why the two cannot coexist here. When npm/cli#9969 closes,
-# drop the token, drop `registry-url` and `NODE_AUTH_TOKEN`, restore
-# `--provenance`, and delete the secret.
+# only, with trusted publishing disabled through NPM_ID_TOKEN rather than by
+# hiding GitHub's OIDC variables — see the Publish step. That distinction is what
+# keeps provenance, which is signed through those same variables. When
+# npm/cli#9969 closes, drop the token, `registry-url`, `NODE_AUTH_TOKEN` and
+# `NPM_ID_TOKEN`, and delete the secret; provenance then comes for free.
 on:
   push:
     tags:
@@ -80,13 +81,23 @@ jobs:
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # npm asks the registry to trade a GitHub id token for a publish
+          # credential before it ever reads the npmrc, and here that trade
+          # *succeeds* — only the upload is refused (npm/cli#9969) — so npm
+          # settles on a credential the registry will then reject.
+          #
+          # `oidc()` takes its id token from NPM_ID_TOKEN in preference to asking
+          # GitHub for one, and returns quietly when the exchange fails, leaving
+          # whatever is in the npmrc alone. A deliberately invalid value therefore
+          # disables trusted publishing and nothing else.
+          #
+          # Unsetting ACTIONS_ID_TOKEN_REQUEST_* disables it too, but provenance is
+          # signed through that same pair, so doing it that way costs the
+          # attestation. This keeps the pair intact for signing and sabotages only
+          # the auth path. Delete this variable when npm/cli#9969 closes.
+          NPM_ID_TOKEN: trusted-publishing-disabled-see-npm-cli-9969
         run: |
           set -euo pipefail
-          # Setting these to "" in `env:` is not enough — the step still handed npm
-          # a usable pair and it signed provenance, which only the OIDC path does.
-          # Removing them from the environment is what actually works.
-          unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN
-          echo "OIDC request vars: ${ACTIONS_ID_TOKEN_REQUEST_URL-unset} / ${ACTIONS_ID_TOKEN_REQUEST_TOKEN-unset}"
           version="${GITHUB_REF_NAME#v}"
           publish() {
             name="$1"
@@ -94,7 +105,7 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already published; skipping."
             else
-              npm publish "$tarball" --access public
+              npm publish "$tarball" --access public --provenance
             fi
           }
           publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz
@@ -118,4 +129,14 @@ jobs:
             done
             echo "::error::$name@$version did not appear on the registry within five minutes."
             exit 1
+          done
+          # Provenance is the reason this workflow jumps through the hoop above, so
+          # prove the attestation is really attached rather than assuming it.
+          for name in chrona-core chrona-react; do
+            if curl -fsS "https://registry.npmjs.org/-/npm/v1/attestations/$name@$version" | grep -q '"attestations"'; then
+              echo "$name@$version carries a provenance attestation."
+            else
+              echo "::error::$name@$version published without a provenance attestation."
+              exit 1
+            fi
           done

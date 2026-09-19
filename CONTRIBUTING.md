@@ -118,14 +118,25 @@ a classic one, so it can reach these two packages and nothing else:
 Scoping the secret to the `release` environment rather than the repository keeps
 it out of every other workflow, including anything a pull request can reach.
 
-Provenance is the one real casualty. npm 11.5+ tries trusted publishing whenever
-GitHub's OIDC variables are in the environment, and here the exchange *succeeds*
-— only the upload is refused — so npm commits to the OIDC credential and never
-falls back to the npmrc token. The publish step therefore empties
-`ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, and
-`--provenance` reads those same variables. Releases published this way carry no
-attestation. Restore `--provenance` together with trusted publishing when
-npm/cli#9969 closes.
+Provenance survives, but only because of how trusted publishing is switched off.
+
+npm trades a GitHub id token for a publish credential before it reads the npmrc,
+and takes that id token from `NPM_ID_TOKEN` in preference to asking GitHub for
+one. `oidc()` returns quietly when the exchange fails and leaves the npmrc alone,
+so an invalid `NPM_ID_TOKEN` disables trusted publishing and nothing else.
+
+The obvious alternative — unsetting `ACTIONS_ID_TOKEN_REQUEST_URL` and
+`ACTIONS_ID_TOKEN_REQUEST_TOKEN` — works too, and costs the attestation:
+`--provenance` is signed through that same pair. 0.3.0 shipped unattested for
+exactly that reason, before the narrower switch was found.
+
+`--provenance-file` is the other way round and was rejected: `verifyProvenance`
+demands one subject whose name is the package purl and whose digest is the
+tarball's **sha512**, while `actions/attest-build-provenance` emits sha256, and a
+hand-rolled predicate would not be npm's own.
+
+Provenance is generated before the upload, so a signing failure costs a failed
+run and never a version number.
 
 An automation-style token is not blocked by account 2FA, so the account can go
 back to requiring 2FA for writes — it was moved to `auth-only` chasing the 403

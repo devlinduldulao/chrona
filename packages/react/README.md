@@ -6,7 +6,7 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.3.0.** Public APIs and styling attributes are not
+> **Status: experimental 0.3.1.** Public APIs and styling attributes are not
 > frozen for v1. 0.3.0 changes when a field reports a value and leaves `today`
 > to the client; 0.2.0 changed the Calendar cell anatomy. See the
 > [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
