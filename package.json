@@ -17,9 +17,10 @@
         "test:e2e": "playwright test",
         "typecheck": "tsc --noEmit",
         "lint": "eslint .",
-        "check": "pnpm typecheck && pnpm lint && pnpm coverage && pnpm build && pnpm size",
+        "check": "pnpm typecheck && pnpm lint && pnpm coverage && pnpm build && pnpm size && pnpm verify:package",
         "size": "size-limit",
-        "changeset": "changeset"
+        "changeset": "changeset",
+        "verify:package": "node scripts/verify-package-exports.mjs"
     },
     "devDependencies": {
         "@changesets/cli": "^2.29.7",

@@ -1,5 +1,24 @@
 # chrona-core
 
+## 0.3.2
+
+### Patch Changes
+
+- Ship the TypeScript declarations again. `chrona-react` 0.3.0 and 0.3.1 published
+  with no `.d.ts` files at all while `exports` still pointed at them, so every
+  TypeScript consumer got `TS7016: Could not find a declaration file for module
+'chrona-react'` on the first import — and, because the ambient `Temporal`
+  namespace arrives through `chrona-core`'s declarations, `TS2503: Cannot find
+namespace 'Temporal'` along with it. Moving the build from CLI flags to
+  `tsup.config.ts` to add the `"use client"` banner dropped `--dts`.
+
+  `pnpm check` now verifies that every path a package's `exports` advertises is
+  present in the packed tarball, so a missing entry point fails before publish
+  rather than after. `chrona-core` is unchanged; the packages release in lockstep.
+
+  The README gains a copy-paste Next.js App Router section: two complete files, in
+  order, with the reason the polyfill import appears in both.
+
 ## 0.3.1
 
 ### Patch Changes

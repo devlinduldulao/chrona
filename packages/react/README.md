@@ -6,7 +6,7 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.3.1.** Public APIs and styling attributes are not
+> **Status: experimental 0.3.2.** Public APIs and styling attributes are not
 > frozen for v1. 0.3.0 changes when a field reports a value and leaves `today`
 > to the client; 0.2.0 changed the Calendar cell anatomy. See the
 > [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
@@ -308,17 +308,11 @@ import { DatePicker } from "chrona-react";
   so it can be set from a touch keyboard; it has no pointer affordance of its
   own, so give readers a keyboard path to it.
 
-## Server Rendering
+## Next.js App Router
 
-These components use state and context, so they carry a `"use client"`
-directive. Importing them from a Server Component is safe — the framework moves
-the import across the boundary — but the module that *renders* them still has to
-be a client module, so mark it `"use client"` as usual.
-
-The polyfill import is a side effect, so it has to reach the *client* bundle.
-Importing `temporal-polyfill/global` from a Server Component file installs
-Temporal on the server only. Put it at the top of a `"use client"` module that
-always loads — a providers file, for example — so it runs before hydration:
+Two files. Both need `"use client"`, and both need the polyfill import — that
+second one is the part people lose an afternoon to, so it is explained under
+the code.
 
 ```tsx
 // app/providers.tsx
@@ -328,25 +322,71 @@ import "temporal-polyfill/global";
 import { ChronaProvider } from "chrona-react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <ChronaProvider locale="en-US" timeZone="Europe/Copenhagen">{children}</ChronaProvider>;
+  return (
+    <ChronaProvider locale="en-US" timeZone="Europe/Copenhagen">
+      {children}
+    </ChronaProvider>
+  );
 }
 ```
 
-That covers the client bundle before hydration. It does not order Node module
-evaluation. If another `"use client"` file reads `Temporal` at module scope
-(`const reference = Temporal.PlainDate.from(...)` at the top of `page.tsx`),
-Next.js may evaluate that file during SSR before `providers.tsx` has run and
-throw `ReferenceError: Temporal is not defined`. Import the polyfill at the top
-of that file too, or move the call inside the component body:
+Render that from `app/layout.tsx` — which stays a Server Component — wrapping
+`{children}`.
 
 ```tsx
+// app/booking-form.tsx
 "use client";
 
+// Needed here as well as in providers.tsx: this module reads Temporal at module
+// scope, and Next.js does not promise providers.tsx has been evaluated first.
 import "temporal-polyfill/global";
+
+import { useState } from "react";
 import { Calendar } from "chrona-react";
 
 const REFERENCE = Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 });
+
+export function BookingForm() {
+  const [value, setValue] = useState<Temporal.PlainDate | null>(null);
+
+  return (
+    <Calendar.Root value={value} onChange={setValue} placeholderValue={REFERENCE} fixedWeeks>
+      <Calendar.Header>
+        <Calendar.PrevButton />
+        <Calendar.Heading />
+        <Calendar.NextButton />
+      </Calendar.Header>
+      <Calendar.Grid>
+        <Calendar.GridHeader />
+        <Calendar.GridBody />
+      </Calendar.Grid>
+      <Calendar.HiddenInput name="bookingDate" />
+    </Calendar.Root>
+  );
+}
 ```
+
+Why the polyfill appears twice: importing it is a side effect, so it has to
+reach the *client* bundle — importing it from a Server Component installs
+Temporal on the server only. `providers.tsx` covers the client before
+hydration, but it does not order Node's module evaluation during SSR. A
+`"use client"` file that reads `Temporal` at module scope can be evaluated
+before `providers.tsx` and throw `ReferenceError: Temporal is not defined`.
+Import it at the top of that file too, or move the call inside the component.
+
+`placeholderValue` is not decoration: it is what a server-rendered calendar
+opens on. See [Give every calendar a reference date](#give-every-calendar-a-reference-date).
+
+`chrona-react` also ships an `AGENTS.md`, written for coding agents and short
+enough to be worth reading yourself — it lists the SSR pitfalls, the part
+anatomy, field draft behaviour, and what is deliberately not implemented.
+
+## Server Rendering
+
+These components use state and context, so they carry a `"use client"`
+directive. Importing them from a Server Component is safe — the framework moves
+the import across the boundary — but the module that *renders* them still has to
+be a client module.
 
 Pass the same reference date, value, locale, and time zone on server and client.
 

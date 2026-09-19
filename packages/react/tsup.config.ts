@@ -10,6 +10,10 @@ export default defineConfig({
         "src/range-calendar.tsx",
     ],
     format: ["esm"],
+    // The CLI build this replaced passed --dts. Dropping it published 0.3.0 and
+    // 0.3.1 with no declarations at all while `exports` still advertised them,
+    // so every TypeScript consumer got TS7016 on the first import.
+    dts: true,
     target: "es2022",
     sourcemap: true,
     clean: true,
