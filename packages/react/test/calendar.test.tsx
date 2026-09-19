@@ -228,3 +228,34 @@ describe("React Calendar", () => {
         expect(result.violations).toEqual([]);
     });
 });
+describe("a server-rendered calendar with nothing to anchor on", () => {
+    it("says so once, and only where it matters", () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        // jsdom defines window, so this is the one case the environment cannot
+        // reproduce on its own: a render with no window is what Node SSR is.
+        vi.stubGlobal("window", undefined);
+        try {
+            renderToString(<Calendar.Root locale="en-US"><Calendar.Grid><Calendar.GridBody /></Calendar.Grid></Calendar.Root>);
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining("placeholderValue"));
+            const first = warn.mock.calls.length;
+            renderToString(<Calendar.Root locale="en-US"><Calendar.Grid><Calendar.GridBody /></Calendar.Grid></Calendar.Root>);
+            expect(warn.mock.calls.length, "one warning, not one per render").toBe(first);
+        } finally { vi.unstubAllGlobals(); warn.mockRestore(); }
+    });
+
+    it("stays quiet when the calendar is anchored", () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        try {
+            renderToString(<Example />);
+            expect(warn).not.toHaveBeenCalled();
+        } finally { warn.mockRestore(); }
+    });
+
+    it("stays quiet in the browser, where there is nothing to mismatch", () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        try {
+            render(<Calendar.Root locale="en-US"><Calendar.Grid><Calendar.GridBody /></Calendar.Grid></Calendar.Root>);
+            expect(warn).not.toHaveBeenCalled();
+        } finally { warn.mockRestore(); }
+    });
+});

@@ -27,8 +27,30 @@ function useToday(options: CalendarOptions): PlainDate | undefined {
     return options.today ?? (iso === null ? undefined : temporal().PlainDate.from(iso));
 }
 
+/**
+ * A calendar with nothing to anchor on opens on the month of *its own* today —
+ * the server's on the server, the reader's in the browser — and React cannot
+ * patch up the mismatch that follows when those differ. Nothing in the library
+ * can fix that; only a reference date can. So say so, once, on the server, where
+ * it is actually a problem: a client-rendered app never sees this.
+ */
+let warnedAboutAnchor = false;
+
+function warnWithoutAnchor(anchored: boolean): void {
+    if (anchored || warnedAboutAnchor || typeof window !== "undefined") return;
+    if (typeof process === "undefined" || process.env?.NODE_ENV === "production") return;
+    warnedAboutAnchor = true;
+    console.warn(
+        "[chrona] A server-rendered Calendar has no value, defaultValue, focusedValue, defaultFocusedValue or placeholderValue, so it opens on whichever day the renderer thinks it is. The server and the reader can disagree, and React will not patch that up. Give it a placeholderValue.",
+    );
+}
+
 export function useCalendar(props: CalendarProps = {}) {
     const options = useChronaConfig(props);
+    warnWithoutAnchor(
+        props.value !== undefined || props.defaultValue !== undefined || props.focusedValue !== undefined
+        || props.defaultFocusedValue !== undefined || options.placeholderValue !== undefined,
+    );
     const generatedId = React.useId();
     const id = props.id ?? generatedId;
     const [store] = React.useState(() => createStore(createCalendar({ ...options, value: props.value !== undefined ? props.value : props.defaultValue, focusedValue: props.focusedValue ?? props.defaultFocusedValue })));

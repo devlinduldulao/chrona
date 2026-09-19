@@ -1,5 +1,27 @@
 # chrona-react
 
+## 0.3.5
+
+### Patch Changes
+
+- Warn, once, when a server-rendered Calendar has nothing to anchor on. Without a
+  value, focused value or `placeholderValue`, it opens on whichever day the
+  renderer thinks it is, the server and the reader can disagree, and React does not
+  patch that up — a silent wrong month is the worst version of that. Development
+  builds only, server renders only; a client-rendered app never sees it.
+
+  The post-publish check moves out of `release.yml` into
+  `scripts/verify-published.mjs`, where it can be run by hand. It had been wrong
+  twice in the same way: the registry's version endpoint lags the upload and its
+  attestation endpoint lags the version endpoint, so reading either once reports a
+  good release as a failure.
+
+  Changesets now treats the two packages as `fixed` rather than `linked`, which is
+  what the release actually requires — a tag is refused unless both versions match
+  it, and `linked` left the untouched package behind.
+
+  - chrona-core@0.3.5
+
 ## 0.3.4
 
 ### Patch Changes

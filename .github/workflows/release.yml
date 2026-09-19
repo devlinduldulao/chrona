@@ -111,41 +111,11 @@ jobs:
           publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz
           publish chrona-react "$RUNNER_TEMP"/packs/chrona-react-*.tgz
 
-      # A green run that skipped both packages is not a release. Prove the
-      # versions are actually on the registry before calling it done — but npm's
-      # publish pipeline is asynchronous ("your package is being processed"), so
-      # a single immediate read fails a release that in fact succeeded. Poll.
+      # A green run that skipped both packages is not a release, and neither is
+      # one whose packages are not attested. The waiting this needs is in the
+      # script, which can be run by hand — inline shell here got it wrong twice.
       - name: Confirm the registry has them
-        run: |
-          set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          for name in chrona-core chrona-react; do
-            for attempt in $(seq 1 30); do
-              if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then
-                echo "$name@$version is published."
-                continue 2
-              fi
-              sleep 10
-            done
-            echo "::error::$name@$version did not appear on the registry within five minutes."
-            exit 1
-          done
-          # Provenance is the reason this workflow jumps through the hoop above, so
-          # prove the attestation is really attached rather than assuming it. This
-          # endpoint lags the version endpoint, which lags the publish, so it gets
-          # the same patience: reading it once failed 0.3.4 over an attestation
-          # that was there a minute later.
-          for name in chrona-core chrona-react; do
-            for attempt in $(seq 1 30); do
-              if curl -fsS "https://registry.npmjs.org/-/npm/v1/attestations/$name@$version" 2>/dev/null | grep -q '"attestations"'; then
-                echo "$name@$version carries a provenance attestation."
-                continue 2
-              fi
-              sleep 10
-            done
-            echo "::error::$name@$version has no provenance attestation after five minutes."
-            exit 1
-          done
+        run: node scripts/verify-published.mjs "${GITHUB_REF_NAME#v}"
 
       # A pushed tag is not a release page. Everything after 0.1.0 was tag-only
       # because nothing here created one; the notes come from the changelogs so

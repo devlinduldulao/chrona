@@ -6,7 +6,7 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.3.4.** Public APIs and styling attributes are not
+> **Status: experimental 0.3.5.** Public APIs and styling attributes are not
 > frozen for v1. 0.3.0 changes when a field reports a value and leaves `today`
 > to the client; 0.2.0 changed the Calendar cell anatomy. See the
 > [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
@@ -419,6 +419,9 @@ server's on the server, the reader's in the browser. When those differ the
 focused cell, and at a month boundary the whole grid, will not match, and React
 reports a hydration mismatch it cannot patch up. Supply `placeholderValue` (or
 a value) on any calendar that is server-rendered.
+
+A development build says so once, from the server render, rather than letting
+the mismatch ship quietly. A client-rendered app never sees it.
 
 ### Segments report once
 
