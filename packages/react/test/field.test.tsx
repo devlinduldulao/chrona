@@ -167,3 +167,46 @@ describe("React fields", () => {
         expect(result.violations).toEqual([]);
     });
 });
+
+describe("soft keyboards", () => {
+    /** Android reports keydown as "Unidentified"; the input event carries the character. */
+    function softType(element: HTMLInputElement, text: string, inputType = "insertText") {
+        fireEvent.keyDown(element, { key: "Unidentified", keyCode: 229 });
+        fireEvent.input(element, { target: { value: text }, data: text, inputType });
+    }
+
+    it("accepts digits from a composing keyboard", () => {
+        render(<DateField.Root locale="en-US" placeholderValue={date()}><DateField.Field /></DateField.Root>);
+        const month = screen.getByRole("spinbutton", { name: "Month" }) as HTMLInputElement;
+        softType(month, "1", "insertCompositionText");
+        softType(month, "2", "insertCompositionText");
+        expect(month.value).toBe("12");
+    });
+
+    it("switches the day period from text, with no hardware keyboard", () => {
+        render(<TimeField.Root locale="en-US" defaultValue={Temporal.PlainTime.from({ hour: 9 })} hourCycle="h12"><TimeField.Field /></TimeField.Root>);
+        const period = screen.getByRole("spinbutton", { name: "AM/PM" }) as HTMLInputElement;
+        expect(period.value).toBe("AM");
+        softType(period, "p");
+        expect(period.value).toBe("PM");
+        softType(period, "AM");
+        expect(period.value).toBe("AM");
+    });
+
+    it("switches the day period from a localized label", async () => {
+        render(<TimeField.Root locale="ja-JP" defaultValue={Temporal.PlainTime.from({ hour: 9 })} hourCycle="h12"><TimeField.Field /></TimeField.Root>);
+        const period = screen.getByRole("spinbutton", { name: "AM/PM" }) as HTMLInputElement;
+        expect(period.value).toBe("\u5348\u524d");
+        softType(period, "\u5348\u5f8c");
+        expect(period.value).toBe("\u5348\u5f8c");
+    });
+
+    it("ignores text that is neither a digit nor a day period", () => {
+        render(<DateField.Root locale="en-US" defaultValue={date()}><DateField.Field /></DateField.Root>);
+        const day = screen.getByRole("spinbutton", { name: "Day" }) as HTMLInputElement;
+        softType(day, "x");
+        expect(day.value).toBe("16");
+        fireEvent.input(day, { target: { value: "2026-09-16" }, data: "2026-09-16", inputType: "insertFromPaste" });
+        expect(day.value).toBe("16");
+    });
+});

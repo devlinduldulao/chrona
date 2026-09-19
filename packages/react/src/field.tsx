@@ -1,5 +1,5 @@
 import * as React from "react";
-import { connectField, createField, createStore, digitValue, fieldHourCycle, transitionField, translations, type FieldEvent, type FieldInvalidReason, type FieldKind, type FieldOptions, type FieldValue, type SegmentType } from "chrona-core";
+import { connectField, createField, createStore, dayPeriodValue, digitValue, fieldHourCycle, transitionField, translations, type FieldEvent, type FieldInvalidReason, type FieldKind, type FieldOptions, type FieldValue, type SegmentType } from "chrona-core";
 import { Part, composeEvent, type PartProps } from "./part";
 import { useChronaConfig } from "./provider";
 import { useFormReset, type HiddenInputProps } from "./form";
@@ -73,6 +73,9 @@ export function useField<Kind extends FieldKind>(kind: Kind, props: FieldProps<K
     return { id, state, options, send, reset, moveFocus, groupRef, announcement, registerLabel: setLabelled, api: connectField(state, { ...options, id, labelId: labelled ? `${id}-label` : undefined }) };
 }
 
+/** Insertion `inputType`s a soft keyboard or IME can use for a single character. */
+const isInsertion = (type: string) => type === "insertText" || type === "insertCompositionText" || type === "insertReplacementText";
+
 export function createFieldComponents<Kind extends FieldKind>(kind: Kind) {
     const Context = React.createContext<ReturnType<typeof useField<Kind>> | null>(null);
     function useContext() {
@@ -105,11 +108,23 @@ export function createFieldComponents<Kind extends FieldKind>(kind: Kind) {
             onPaste={composeEvent(onPaste, (event) => event.preventDefault())}
             onDrop={composeEvent(onDrop, (event) => event.preventDefault())}
             onChange={(event) => {
+                // Soft keyboards do not produce a usable `key`, and Android delivers most text as a
+                // composition, so the input event is the only signal there. Nothing is parsed: the
+                // inserted text still has to read as one digit, or as this locale's AM/PM label.
                 const native = event.nativeEvent as InputEvent;
-                const digit = digitValue(native.data ?? "", options.locale);
+                const data = native.data ?? "";
                 event.currentTarget.value = display;
-                if (native.inputType === "insertText" && digit !== null) send({ type: "DIGIT", segment: type, digit });
-                else if (native.inputType === "deleteContentBackward" || native.inputType === "deleteContentForward") send({ type: "CLEAR", segment: type });
+                if (isInsertion(native.inputType)) {
+                    if (type === "dayPeriod") {
+                        const period = dayPeriodValue(data, options.locale, fieldHourCycle(options));
+                        if (period !== null) send({ type: "PERIOD", value: period });
+                        return;
+                    }
+                    const digit = digitValue(data, options.locale);
+                    if (digit !== null) send({ type: "DIGIT", segment: type, digit });
+                } else if (native.inputType === "deleteContentBackward" || native.inputType === "deleteContentForward") {
+                    send({ type: "CLEAR", segment: type });
+                }
             }}
             onKeyDown={composeEvent(onKeyDown, (event) => {
                 if (event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent.isComposing) return;
@@ -121,10 +136,11 @@ export function createFieldComponents<Kind extends FieldKind>(kind: Kind) {
                     case "Home": case "End": event.preventDefault(); send({ type: "EDGE", segment: type, edge: event.key === "Home" ? "min" : "max" }); break;
                     case "Backspace": case "Delete": event.preventDefault(); send({ type: "CLEAR", segment: type }); break;
                     case "ArrowLeft": case "ArrowRight": event.preventDefault(); moveFocus(type, (event.key === "ArrowRight" ? 1 : -1) * (dir === "rtl" ? -1 : 1)); break;
-                    default:
-                        if (type === "dayPeriod" && ["a", "p"].includes(event.key.toLowerCase())) {
-                            event.preventDefault(); send({ type: "PERIOD", value: event.key.toLowerCase() === "a" ? 0 : 1 });
-                        }
+                    default: {
+                        if (type !== "dayPeriod" || event.key.length !== 1) return;
+                        const period = dayPeriodValue(event.key, options.locale, fieldHourCycle(options));
+                        if (period !== null) { event.preventDefault(); send({ type: "PERIOD", value: period }); }
+                    }
                 }
             })} />;
     });

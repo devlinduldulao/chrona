@@ -6,8 +6,9 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.2.1.** Public APIs and styling attributes are not
-> frozen for v1; 0.2.0 changes the Calendar cell anatomy. See the
+> **Status: experimental 0.3.0.** Public APIs and styling attributes are not
+> frozen for v1. 0.3.0 changes when a field reports a value and leaves `today`
+> to the client; 0.2.0 changed the Calendar cell anatomy. See the
 > [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
 > compatibility certification is claimed.
 
@@ -27,6 +28,15 @@ it is not native, load a polyfill before rendering:
 ```ts
 import "temporal-polyfill/global";
 ```
+
+`temporal-polyfill` 1.x installs itself only where Temporal is missing, and its
+default entry carries the ISO calendar alone. Node 24+ and current Chrome have
+native Temporal, so on those the import does nothing — and native Temporal in
+Node cannot yet do arithmetic on non-ISO calendars, `gregory` among them. A
+Calendar given `calendar="gregory"` or a Gregorian value renders in the browser
+and throws `RangeError: Temporal error: Not yet implemented.` during SSR. Keep
+values in `iso8601` unless you have verified the server runtime, and reach for
+`temporal-polyfill/full/global` when you need other calendar systems.
 
 The TypeScript types come along for free: `chrona-core`'s declarations reference
 `temporal-spec/global`, so importing anything from this package puts the ambient
@@ -288,14 +298,22 @@ import { DatePicker } from "chrona-react";
   the year are zero-padded, so a field keeps one width as it fills.
 - Typed digits are literal and stepping clamps: 29 February is reachable before
   the year is typed, and a finished date the calendar cannot hold reports
-  `onInvalid("nonexistent")` instead of sliding to the 28th. Validation waits for
-  a segment to finish, so a half-typed year raises nothing until blur.
+  `onInvalid("nonexistent")` instead of sliding to the 28th. A segment is a draft
+  until its last digit lands: a half-typed year neither reports a value nor
+  raises `onInvalid`, and blur settles whatever is there.
 - Use `value`/`onChange` or `defaultValue`/`onChange` — do not switch modes
   during a component's lifetime.
+- Field segments take digits from the keyboard and from soft keyboards that only
+  report an input event. The AM/PM segment also accepts its locale's own label,
+  so it can be set from a touch keyboard; it has no pointer affordance of its
+  own, so give readers a keyboard path to it.
 
 ## Server Rendering
 
-These are client components: mark the module that renders them `"use client"`.
+These components use state and context, so they carry a `"use client"`
+directive. Importing them from a Server Component is safe — the framework moves
+the import across the boundary — but the module that *renders* them still has to
+be a client module, so mark it `"use client"` as usual.
 
 The polyfill import is a side effect, so it has to reach the *client* bundle.
 Importing `temporal-polyfill/global` from a Server Component file installs
@@ -331,13 +349,60 @@ const REFERENCE = Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 });
 ```
 
 Pass the same reference date, value, locale, and time zone on server and client.
-`timeZone` matters because today is resolved at render time, and a server in
-another zone marks a different cell.
+
+### Today
+
+A server cannot know the reader's today: it may be in another time zone, and a
+statically prerendered page can be served days after it was built. `Calendar`
+therefore leaves `data-today` and `aria-current="date"` out of the server HTML
+and resolves them on the client, right after hydration. The marker is correct
+for the reader and the markup hydrates cleanly; the cost is that it appears one
+frame late. Pass `today` yourself when you want it in the server HTML:
+
+```tsx
+<Calendar.Root today={Temporal.PlainDate.from("2026-09-16")} />
+```
+
+### Give every calendar a reference date
+
+With no `value`, `defaultValue`, `focusedValue`, `defaultFocusedValue` or
+`placeholderValue`, a calendar opens on the month of *its own* today — the
+server's on the server, the reader's in the browser. When those differ the
+focused cell, and at a month boundary the whole grid, will not match, and React
+reports a hydration mismatch it cannot patch up. Supply `placeholderValue` (or
+a value) on any calendar that is server-rendered.
+
+### Segments report once
+
+A `DateField` segment is a draft until its last digit lands. Typing `2026` calls
+`onChange` once with that year, not four times on the way through 2, 20 and 202,
+so a handler that writes to a route, a server action or a store is not handed
+dates nobody typed. Leaving the field early settles the draft literally: `20`
+becomes the year 20.
 
 Segment literals are normalized before they reach the DOM: `Intl` emits U+202F
 before AM/PM on newer ICU data and a plain space on older data, and Node and the
 browser rarely ship the same ICU. Chrona collapses both to a plain space, so a
 12-hour `TimeField` hydrates cleanly without forcing `hourCycle="h23"`.
+
+Two things it does not cover:
+
+- Dates before the Gregorian reform of 1582. Labels go through the `gregory`
+  calendar, which ICU treats as Julian before the cutover, and runtimes disagree
+  about the shift — Node labels ISO `0001-01-01` "January 3, 1" where Chrome
+  says "January 1, 1". Historical ranges that reach back past 1582 will both
+  mislabel cells and mismatch on hydration.
+- Cell labels in `ja-JP` and `zh-CN` when the server and the browser run
+  *different* Temporal implementations. V8 renders a date-only `dateStyle` as
+  `2026/9/16水曜日`; `temporal-polyfill` renders `2026年9月16日水曜日`. Node 24+
+  and current Chrome are both native, so they agree — but a Node 22 server is
+  polyfilled while its Chrome client is not, and every cell's accessible name
+  then differs. Run the same implementation on both sides.
+
+Load exactly one Temporal implementation, too. Two copies of a polyfill, or a
+mix of its default and `full` entry points, each install their own
+`globalThis.Temporal`; values built by the loser are refused with a
+`TEMPORAL_MISMATCH` `ChronaError` naming that cause.
 
 Full documentation lives in the [repository README](https://github.com/devlinduldulao/chrona#readme).
 

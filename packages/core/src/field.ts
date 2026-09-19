@@ -1,4 +1,4 @@
-import { ChronaError, temporal, type PlainDate, type PlainTime } from "./temporal";
+import { ChronaError, isForeignTemporal, mixedTemporalMessage, temporal, type PlainDate, type PlainTime } from "./temporal";
 import { formatDate, formatParts, getDateTimeFormatter, getNumberFormatter, translations, type SegmentName, type Translations } from "./i18n";
 
 export type FieldKind = "date" | "time";
@@ -79,8 +79,11 @@ function valueParts<Kind extends FieldKind>(kind: Kind, value: FieldValue<Kind>,
 export function createField<Kind extends FieldKind>(kind: Kind, options: FieldOptions<Kind> = {}): FieldState<Kind> {
     const platform = temporal();
     const Constructor = kind === "date" ? platform.PlainDate : platform.PlainTime;
+    const expected = kind === "date" ? "PlainDate" : "PlainTime";
     for (const [name, candidate] of Object.entries({ value: options.value, placeholderValue: options.placeholderValue, minValue: options.minValue, maxValue: options.maxValue })) {
-        if (candidate != null && !(candidate instanceof Constructor)) throw new ChronaError("INVALID_FIELD_VALUE", `${name} must be a Temporal.${kind === "date" ? "PlainDate" : "PlainTime"}.`);
+        if (candidate == null || candidate instanceof Constructor) continue;
+        if (isForeignTemporal(candidate, expected)) throw new ChronaError("TEMPORAL_MISMATCH", mixedTemporalMessage(name, expected));
+        throw new ChronaError("INVALID_FIELD_VALUE", `${name} must be a Temporal.${expected}.`);
     }
     const reference = options.value ?? options.placeholderValue ?? (kind === "date" ? platform.Now.plainDateISO() : platform.PlainTime.from({ hour: 12 })) as FieldValue<Kind>;
     if (kind === "date" && !["iso8601", "gregory"].includes((reference as PlainDate).calendarId)) {
@@ -146,26 +149,33 @@ function materialize<Kind extends FieldKind>(state: FieldState<Kind>, options: F
 /**
  * Decides what a set of segment values means once an edit has been applied. A half-typed segment
  * (`buffer` still open) is a draft: `2` on the way to `2026` is not a year in the first century, so
- * drafts never announce themselves invalid. Blur closes the draft and validates what is left.
+ * a draft neither announces itself invalid nor reports a value. `20` reads as a real leap year and
+ * `1` as a real month, so committing mid-keystroke would hand the binding dates the person never
+ * typed. The last digit of a segment closes the buffer, and blur closes it early; either way the
+ * finished field settles and reports once.
  */
 function settle<Kind extends FieldKind>(previous: FieldState<Kind>, next: FieldState<Kind>, options: FieldOptions<Kind>, overflow: "constrain" | "reject", effects: FieldEffect<Kind>[]): { state: FieldState<Kind>; effects: FieldEffect<Kind>[] } {
+    const drafting = next.buffer !== null;
     if (Object.values(next.parts).some((value) => value == null)) {
-        next.value = null;
-        if (previous.value !== null) effects.push({ type: "change", value: null });
+        next.value = drafting ? previous.value : null;
+        if (!drafting && previous.value !== null) effects.push({ type: "change", value: null });
         return { state: next, effects };
     }
     const value = materialize(next, options, overflow);
     const outOfBounds = value !== null && ((options.minValue && compareField(next.kind, value, options.minValue) < 0) || (options.maxValue && compareField(next.kind, value, options.maxValue) > 0));
     const unavailable = value !== null && next.kind === "date" && options.isDateUnavailable?.(value as PlainDate);
     if (value === null || outOfBounds || unavailable) {
-        const drafting = next.buffer !== null;
         next.invalid = !drafting;
-        next.value = null;
-        if (!drafting) effects.push({ type: "invalid", reason: value === null ? "nonexistent" : unavailable ? "unavailable" : "range" });
-        if (previous.value !== null) effects.push({ type: "change", value: null });
+        next.value = drafting ? previous.value : null;
+        if (!drafting) {
+            effects.push({ type: "invalid", reason: value === null ? "nonexistent" : unavailable ? "unavailable" : "range" });
+            if (previous.value !== null) effects.push({ type: "change", value: null });
+        }
+    } else if (drafting) {
+        next.value = previous.value;
     } else {
         next.value = value;
-        next.parts = next.buffer === null ? valueParts(next.kind, value, options) : next.parts;
+        next.parts = valueParts(next.kind, value, options);
         if (previous.value === null || compareField(next.kind, previous.value, value) !== 0) effects.push({ type: "change", value });
     }
     return { state: next, effects };
@@ -212,6 +222,23 @@ export function transitionField<Kind extends FieldKind>(state: FieldState<Kind>,
 }
 
 const localizedDigits = new Map<string, string[]>();
+
+/**
+ * Matches typed text against the day period. Latin `a`/`p` always work, and the locale's own
+ * labels are matched by prefix so a soft keyboard — which delivers text rather than a usable
+ * `key` — can still switch AM/PM in locales whose labels are not `AM`/`PM`.
+ */
+export function dayPeriodValue(text: string, locale?: string, hourCycle: HourCycle = "h12"): 0 | 1 | null {
+    const candidate = text.trim().toLowerCase();
+    if (!candidate) return null;
+    if (candidate === "a" || candidate === "p") return candidate === "a" ? 0 : 1;
+    for (const period of [0, 1] as const) {
+        const label = formatParts(temporal().PlainTime.from({ hour: period * 12 }), locale, { hour: "numeric", hourCycle })
+            .find((part) => part.type === "dayPeriod")?.value.toLowerCase();
+        if (label && (label.startsWith(candidate) || candidate.startsWith(label))) return period;
+    }
+    return null;
+}
 
 export function digitValue(key: string, locale?: string): number | null {
     const ascii = "0123456789".indexOf(key);

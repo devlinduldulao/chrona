@@ -13,6 +13,20 @@ export interface CalendarProps extends CalendarOptions {
     id?: string;
 }
 
+/**
+ * `today` depends on when and where the page is rendered, so a server render — including a page
+ * prerendered at build time and served days later — cannot know the reader's. Resolving it through
+ * `useSyncExternalStore` keeps the hydrating markup identical to the server's (no marker) and lets
+ * React correct it right after, instead of leaving the server's day marked for good. Applications
+ * that need the marker in the server HTML pass `today` themselves.
+ */
+const noStoreUpdates = () => () => {};
+const noServerToday = () => null;
+function useToday(options: CalendarOptions): PlainDate | undefined {
+    const iso = React.useSyncExternalStore(noStoreUpdates, () => temporal().Now.plainDateISO(options.timeZone).toString(), noServerToday);
+    return options.today ?? (iso === null ? undefined : temporal().PlainDate.from(iso));
+}
+
 export function useCalendar(props: CalendarProps = {}) {
     const options = useChronaConfig(props);
     const generatedId = React.useId();
@@ -22,6 +36,7 @@ export function useCalendar(props: CalendarProps = {}) {
     // The store is the single source of truth; controlled props are reconciled into it by syncCalendar.
     const state = syncCalendar(snapshot, { ...options, value: props.value, focusedValue: props.focusedValue });
     React.useEffect(() => { store.setState(state); });
+    const today = useToday(options);
     const rootRef = React.useRef<HTMLElement | null>(null);
     const pendingFocus = React.useRef(false);
     const [announcement, setAnnouncement] = React.useState("");
@@ -52,7 +67,7 @@ export function useCalendar(props: CalendarProps = {}) {
 
     return {
         state, options, send, rootRef, announcement,
-        api: connectCalendar(state, { ...options, id, today: temporal().Now.plainDateISO(options.timeZone) }),
+        api: connectCalendar(state, { ...options, id, today }),
         months: Array.from({ length: options.numberOfMonths ?? 1 }, (_, index) => state.visibleMonth.add({ months: index })),
     };
 }

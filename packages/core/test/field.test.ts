@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectField, createField, digitValue, transitionField } from "../src/index";
+import { connectField, createField, dayPeriodValue, digitValue, transitionField } from "../src/index";
 
 const date = () => Temporal.PlainDate.from({ year: 2024, month: 1, day: 31 });
 
@@ -20,6 +20,69 @@ describe("segmented fields", () => {
         const cleared = transitionField(state, { type: "CLEAR", segment: "month" });
         expect(cleared.state.value).toBeNull();
         expect(cleared.effects).toContainEqual({ type: "change", value: null });
+    });
+
+    it("reports nothing until the segment being typed is finished", () => {
+        // `2`, `20` and `202` are all real years, and `20` is even a leap year, so a field that
+        // committed on every keystroke would hand the binding three dates nobody typed.
+        let state = createField("date", { locale: "en-US", placeholderValue: date() });
+        const effects: unknown[] = [];
+        for (const event of [
+            { type: "DIGIT", segment: "month", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 9 },
+            { type: "DIGIT", segment: "year", digit: 2 },
+            { type: "DIGIT", segment: "year", digit: 0 },
+            { type: "DIGIT", segment: "year", digit: 2 },
+        ] as const) {
+            const result = transitionField(state, event, { locale: "en-US" });
+            state = result.state;
+            effects.push(...result.effects.filter((effect) => effect.type === "change"));
+        }
+        expect(effects).toEqual([]);
+        expect(state.value).toBeNull();
+        const finished = transitionField(state, { type: "DIGIT", segment: "year", digit: 4 }, { locale: "en-US" });
+        expect(finished.effects).toContainEqual({ type: "change", value: expect.anything() });
+        expect(finished.state.value?.toString()).toBe("2024-02-29");
+    });
+
+    it("keeps the committed value while a segment of a complete date is half typed", () => {
+        const options = { locale: "en-US" };
+        let state = createField("date", { ...options, value: Temporal.PlainDate.from("2026-09-16") });
+        const typed = transitionField(state, { type: "DIGIT", segment: "month", digit: 1 }, options);
+        expect(typed.effects, "January is not what someone typing December meant").toEqual([]);
+        expect(typed.state.value?.toString()).toBe("2026-09-16");
+        expect(typed.state.parts.month).toBe(1);
+        state = typed.state;
+        const finished = transitionField(state, { type: "DIGIT", segment: "month", digit: 2 }, options);
+        expect(finished.state.value?.toString()).toBe("2026-12-16");
+        expect(finished.effects).toContainEqual({ type: "change", value: expect.anything() });
+    });
+
+    it("settles a draft on blur", () => {
+        const options = { locale: "en-US", placeholderValue: date() };
+        let state = createField("date", options);
+        for (const event of [
+            { type: "DIGIT", segment: "month", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 2 },
+            { type: "DIGIT", segment: "day", digit: 9 },
+            { type: "DIGIT", segment: "year", digit: 2 },
+            { type: "DIGIT", segment: "year", digit: 0 },
+            { type: "DIGIT", segment: "year", digit: 2 },
+        ] as const) state = transitionField(state, event, options).state;
+        const blurred = transitionField(state, { type: "BLUR" }, options);
+        expect(blurred.effects).toEqual([{ type: "invalid", reason: "nonexistent" }]);
+        expect(blurred.state.invalid).toBe(true);
+    });
+
+    it("matches day periods by latin letter and by the locale's own label", () => {
+        expect(dayPeriodValue("a", "en-US")).toBe(0);
+        expect(dayPeriodValue("P", "en-US")).toBe(1);
+        expect(dayPeriodValue("PM", "en-US")).toBe(1);
+        expect(dayPeriodValue("\u5348\u5f8c", "ja-JP")).toBe(1);
+        expect(dayPeriodValue("\u5348\u524d", "ja-JP")).toBe(0);
+        expect(dayPeriodValue("x", "en-US")).toBeNull();
+        expect(dayPeriodValue("", "en-US")).toBeNull();
     });
 
     it("does not emit a value while day and year are blank", () => {
@@ -140,5 +203,31 @@ describe("segmented fields", () => {
         // @ts-expect-error A date cannot be edited as a time.
         expect(() => createField("time", { value: date() })).toThrow("PlainTime");
         expect(() => createField("date", { value: date().withCalendar("hebrew") })).toThrow("currently supports");
+    });
+});
+describe("a second Temporal implementation", () => {
+    /** A stand-in for a value built by another copy of the polyfill: right brand, wrong class. */
+    function foreign(kind: "PlainDate" | "PlainTime") {
+        return Object.assign(Object.create(null), {
+            [Symbol.toStringTag]: `Temporal.${kind}`,
+            year: 2026, month: 9, day: 16, hour: 9, minute: 30, second: 0,
+            calendarId: "iso8601",
+        });
+    }
+
+    it("names the real cause instead of blaming a string", () => {
+        expect(() => createField("date", { value: foreign("PlainDate") as never }))
+            .toThrow(/another Temporal implementation/);
+        expect(() => createField("time", { placeholderValue: foreign("PlainTime") as never }))
+            .toThrow(/another Temporal implementation/);
+        try { createField("date", { value: foreign("PlainDate") as never }); }
+        catch (error) { expect((error as { code: string }).code).toBe("TEMPORAL_MISMATCH"); }
+    });
+
+    it("still rejects strings and Dates as strings and Dates", () => {
+        expect(() => createField("date", { value: "2026-09-16" as never })).toThrow(/not a string or Date|must be a Temporal/);
+        expect(() => createField("date", { value: new Date() as never })).toThrow(/must be a Temporal/);
+        try { createField("date", { value: "2026-09-16" as never }); }
+        catch (error) { expect((error as { code: string }).code).toBe("INVALID_FIELD_VALUE"); }
     });
 });
