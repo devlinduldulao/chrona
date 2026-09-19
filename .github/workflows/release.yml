@@ -73,17 +73,20 @@ jobs:
       # npm 11.5+ attempts trusted publishing whenever GitHub's OIDC variables are
       # in the environment, and here the token exchange *succeeds* — it is the
       # upload that is refused — so npm settles on the OIDC credential and never
-      # reaches the token in the npmrc. Emptying those two variables for this step
-      # is what makes it use the credential we actually have. Provenance reads the
-      # same variables, so it cannot be signed while they are hidden; it comes
-      # back with trusted publishing when npm/cli#9969 closes.
+      # reaches the token in the npmrc. The variables have to be *unset*, not
+      # emptied, for npm to fall back. Provenance reads the same pair, so it
+      # cannot be signed either way; it comes back with trusted publishing when
+      # npm/cli#9969 closes. The echo makes a repeat of this unmistakable.
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          ACTIONS_ID_TOKEN_REQUEST_URL: ""
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ""
         run: |
           set -euo pipefail
+          # Setting these to "" in `env:` is not enough — the step still handed npm
+          # a usable pair and it signed provenance, which only the OIDC path does.
+          # Removing them from the environment is what actually works.
+          unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN
+          echo "OIDC request vars: ${ACTIONS_ID_TOKEN_REQUEST_URL-unset} / ${ACTIONS_ID_TOKEN_REQUEST_TOKEN-unset}"
           version="${GITHUB_REF_NAME#v}"
           publish() {
             name="$1"
