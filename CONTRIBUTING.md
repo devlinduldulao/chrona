@@ -118,9 +118,14 @@ a classic one, so it can reach these two packages and nothing else:
 Scoping the secret to the `release` environment rather than the repository keeps
 it out of every other workflow, including anything a pull request can reach.
 
-Provenance is unaffected by any of this: `npm publish --provenance` needs
-`id-token: write` and a recognised CI, not a trusted publisher, so releases
-published this way are still attested and show the verified badge on npm.
+Provenance is the one real casualty. npm 11.5+ tries trusted publishing whenever
+GitHub's OIDC variables are in the environment, and here the exchange *succeeds*
+— only the upload is refused — so npm commits to the OIDC credential and never
+falls back to the npmrc token. The publish step therefore empties
+`ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, and
+`--provenance` reads those same variables. Releases published this way carry no
+attestation. Restore `--provenance` together with trusted publishing when
+npm/cli#9969 closes.
 
 An automation-style token is not blocked by account 2FA, so the account can go
 back to requiring 2FA for writes — it was moved to `auth-only` chasing the 403

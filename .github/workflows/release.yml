@@ -13,10 +13,10 @@ name: Release
 # on this side. See CONTRIBUTING.md before reopening this.
 #
 # So: a granular npm token in the NPM_TOKEN secret, scoped to these two packages
-# only. Provenance is unaffected — it needs `id-token: write` and a supported
-# CI, not trusted publishing — so releases are still attested. When npm/cli#9969
-# closes, drop the token, drop `registry-url` and `NODE_AUTH_TOKEN`, and delete
-# the secret.
+# only. Releases carry no provenance attestation while that holds — see the
+# Publish step for why the two cannot coexist here. When npm/cli#9969 closes,
+# drop the token, drop `registry-url` and `NODE_AUTH_TOKEN`, restore
+# `--provenance`, and delete the secret.
 on:
   push:
     tags:
@@ -70,9 +70,18 @@ jobs:
       # Core first: chrona-react depends on it. Skipping versions already on the
       # registry keeps a re-run, or a moved tag, from failing the release over
       # work that is in fact already done.
+      # npm 11.5+ attempts trusted publishing whenever GitHub's OIDC variables are
+      # in the environment, and here the token exchange *succeeds* — it is the
+      # upload that is refused — so npm settles on the OIDC credential and never
+      # reaches the token in the npmrc. Emptying those two variables for this step
+      # is what makes it use the credential we actually have. Provenance reads the
+      # same variables, so it cannot be signed while they are hidden; it comes
+      # back with trusted publishing when npm/cli#9969 closes.
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ""
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ""
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
@@ -82,7 +91,7 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already published; skipping."
             else
-              npm publish "$tarball" --access public --provenance
+              npm publish "$tarball" --access public
             fi
           }
           publish chrona-core "$RUNNER_TEMP"/packs/chrona-core-*.tgz
