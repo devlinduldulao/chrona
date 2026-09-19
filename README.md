@@ -17,7 +17,7 @@ npm install chrona-core    # framework-agnostic state machines
 
 ## Develop
 
-Use Node 22+ and pnpm 12.3.4 for development.
+Use Node 24+ and pnpm 12.3.4 for development.
 
 ```sh
 pnpm install
