@@ -1,5 +1,16 @@
 # chrona-core
 
+## 0.3.3
+
+### Patch Changes
+
+- Ship a starter stylesheet at `docs/starter.css`, referenced from both READMEs.
+  The packages still ship no CSS — that is the point — but an unstyled Calendar is
+  a column of bare buttons, and two independent reviews each wrote roughly two
+  hundred lines before one looked presentable. This is those lines: every part the
+  packages emit, eight custom properties for colour, a dark-mode block, and no
+  typeface of its own.
+
 ## 0.3.2
 
 ### Patch Changes

@@ -6,7 +6,7 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.3.2.** Public APIs and styling attributes are not
+> **Status: experimental 0.3.3.** Public APIs and styling attributes are not
 > frozen for v1. 0.3.0 changes when a field reports a value and leaves `today`
 > to the client; 0.2.0 changed the Calendar cell anatomy. See the
 > [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
@@ -127,6 +127,12 @@ A barrel export is also available. Matching hooks — `useCalendar`,
 `state`, resolved `options`, and `send` for custom shells.
 
 ## Styling And Forms
+
+There is a starter stylesheet at
+[`docs/starter.css`](https://github.com/devlinduldulao/chrona/blob/main/docs/starter.css)
+— copy it in and edit it. It styles every part these packages emit, takes its
+colours from eight custom properties, and exists so that the first two hundred
+lines of CSS are not yours to write.
 
 Style via `data-scope`, `data-part`, and state attributes: `data-selected`,
 `data-focused`, `data-today`, `data-disabled`, `data-unavailable`,

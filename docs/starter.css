@@ -1,0 +1,295 @@
+/*
+ * Chrona starter stylesheet — copy this into your app and edit it.
+ *
+ * The packages ship no CSS, which is the point: you own every pixel. That does
+ * mean an unstyled Calendar is a column of bare buttons, and writing the first
+ * two hundred lines yourself is a poor introduction. This is those lines.
+ *
+ * It is deliberately plain: it styles structure and state, picks no typeface,
+ * and takes its colours from the eight custom properties below, so restyling is
+ * editing :root rather than hunting through selectors. Everything is targeted
+ * through [data-scope] / [data-part] / state attributes, so it survives any
+ * markup you compose with asChild.
+ *
+ * Covers Calendar, RangeCalendar, DateField, TimeField and DatePicker. Two
+ * parts are deliberately absent: `grid-body` is a role="rowgroup" wrapper whose
+ * rows do the layout, and `hidden-input` is type="hidden".
+ */
+
+:root {
+    --chrona-fg: #18181b;
+    --chrona-bg: #ffffff;
+    --chrona-muted: #71717a;
+    --chrona-border: #e4e4e7;
+    --chrona-accent: #4f46e5;
+    --chrona-accent-fg: #ffffff;
+    --chrona-accent-soft: #e0e7ff;
+    --chrona-invalid: #dc2626;
+    --chrona-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --chrona-fg: #fafafa;
+        --chrona-bg: #09090b;
+        --chrona-muted: #a1a1aa;
+        --chrona-border: #27272a;
+        --chrona-accent: #818cf8;
+        --chrona-accent-fg: #1e1b4b;
+        --chrona-accent-soft: #312e81;
+        --chrona-invalid: #f87171;
+    }
+}
+
+/* ---------------------------------------------------------------- calendar */
+
+[data-scope="calendar"][data-part="root"],
+[data-scope="range-calendar"][data-part="root"] {
+    display: inline-grid;
+    gap: 12px;
+    padding: 16px;
+    color: var(--chrona-fg);
+    background: var(--chrona-bg);
+    border: 1px solid var(--chrona-border);
+    border-radius: calc(var(--chrona-radius) * 2);
+}
+
+[data-part="header"] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+[data-part="heading"] {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+[data-part="prev-button"],
+[data-part="next-button"] {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: inherit;
+    background: transparent;
+    border: 1px solid var(--chrona-border);
+    border-radius: var(--chrona-radius);
+    cursor: pointer;
+}
+
+[data-part="prev-button"]:hover:not(:disabled),
+[data-part="next-button"]:hover:not(:disabled) {
+    background: var(--chrona-accent-soft);
+}
+
+[data-part="prev-button"]:disabled,
+[data-part="next-button"]:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+[data-part="grid"] {
+    display: grid;
+    gap: 2px;
+}
+
+[data-part="grid-header"],
+[data-part="row"] {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+[data-part="header-cell"] {
+    padding: 4px 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--chrona-muted);
+    text-align: center;
+}
+
+[data-part="cell"] {
+    display: grid;
+}
+
+/* The trigger is the button. Style this, not the cell. */
+[data-part="cell-trigger"] {
+    min-width: 36px;
+    min-height: 36px;
+    font: inherit;
+    font-size: 0.85rem;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: var(--chrona-radius);
+    cursor: pointer;
+}
+
+[data-part="cell-trigger"]:hover:not([aria-disabled="true"]) {
+    background: var(--chrona-accent-soft);
+}
+
+[data-part="cell-trigger"]:focus-visible {
+    outline: 2px solid var(--chrona-accent);
+    outline-offset: 1px;
+}
+
+/* Today is resolved on the client, so this appears just after hydration. */
+[data-part="cell-trigger"][data-today] {
+    box-shadow: inset 0 0 0 1px var(--chrona-accent);
+}
+
+[data-part="cell-trigger"][data-selected],
+[data-part="cell-trigger"][data-range-start],
+[data-part="cell-trigger"][data-range-end] {
+    font-weight: 600;
+    color: var(--chrona-accent-fg);
+    background: var(--chrona-accent);
+}
+
+[data-part="cell-trigger"][data-in-range]:not([data-range-start]):not([data-range-end]),
+[data-part="cell-trigger"][data-preview]:not([data-range-start]):not([data-range-end]) {
+    background: var(--chrona-accent-soft);
+}
+
+[data-part="cell-trigger"][data-invalid] {
+    background: var(--chrona-invalid);
+    color: var(--chrona-bg);
+}
+
+[data-part="cell-trigger"][data-outside-month] {
+    color: var(--chrona-muted);
+    opacity: 0.55;
+}
+
+/* Unavailable stays focusable and is struck through; disabled is inert. */
+[data-part="cell-trigger"][data-unavailable] {
+    color: var(--chrona-muted);
+    text-decoration: line-through;
+}
+
+[data-part="cell-trigger"][data-disabled] {
+    color: var(--chrona-muted);
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ fields */
+
+[data-part="label"] {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--chrona-muted);
+}
+
+[data-part="field"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 7px 10px;
+    color: var(--chrona-fg);
+    background: var(--chrona-bg);
+    border: 1px solid var(--chrona-border);
+    border-radius: var(--chrona-radius);
+}
+
+[data-part="field"]:focus-within {
+    border-color: var(--chrona-accent);
+}
+
+[data-part="field"][data-invalid] {
+    border-color: var(--chrona-invalid);
+}
+
+[data-part="field"][data-disabled] {
+    opacity: 0.55;
+}
+
+/* Segments are inputs: strip the chrome and let them size to their content. */
+[data-part="segment"] {
+    width: 2.5ch;
+    padding: 0 1px;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    color: inherit;
+    text-align: center;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+}
+
+[data-part="segment"][data-segment="year"] {
+    width: 4.5ch;
+}
+
+[data-part="segment"][data-segment="dayPeriod"] {
+    width: 3ch;
+}
+
+[data-part="segment"]:focus {
+    color: var(--chrona-accent-fg);
+    background: var(--chrona-accent);
+    outline: none;
+}
+
+[data-part="segment"][data-placeholder] {
+    color: var(--chrona-muted);
+}
+
+[data-part="literal"] {
+    color: var(--chrona-muted);
+}
+
+/* ------------------------------------------------------------ picker, misc */
+
+[data-part="trigger"],
+[data-part="clear-button"] {
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 0.85rem;
+    color: inherit;
+    background: transparent;
+    border: 1px solid var(--chrona-border);
+    border-radius: var(--chrona-radius);
+    cursor: pointer;
+}
+
+[data-part="trigger"]:hover:not(:disabled),
+[data-part="clear-button"]:hover:not(:disabled) {
+    background: var(--chrona-accent-soft);
+}
+
+[data-part="popover"] {
+    padding: 0;
+    color: var(--chrona-fg);
+    background: var(--chrona-bg);
+    border: 1px solid var(--chrona-border);
+    border-radius: calc(var(--chrona-radius) * 2);
+}
+
+[data-part="popover"]::backdrop {
+    background: rgb(0 0 0 / 0.4);
+}
+
+[data-part="chevron"],
+[data-part="trigger-icon"] {
+    display: block;
+    width: 1em;
+    height: 1em;
+}
+
+/* Live regions announce selection; they must stay in the accessibility tree. */
+[data-part="live-region"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}

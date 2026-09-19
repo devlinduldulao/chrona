@@ -9,7 +9,7 @@ external store. It renders nothing. If you want React components, install
 [`chrona-react`](https://www.npmjs.com/package/chrona-react) instead — it is
 built on this package.
 
-> **Status: experimental 0.3.2.** Public APIs are not frozen for v1. 0.3.0
+> **Status: experimental 0.3.3.** Public APIs are not frozen for v1. 0.3.0
 > stops a half-typed segment reporting a value; 0.2.0 split the calendar cell
 > getters. See the [changelog](./CHANGELOG.md). No screen-reader compatibility
 > certification is claimed.
@@ -124,7 +124,9 @@ locale and normalized options.
 - Output is ESM with declarations and source maps, targeting ES2022.
 - `required` is accessibility metadata; it does not block native form submission.
 - Styling hooks are `data-scope`, `data-part`, and state attributes such as
-  `data-selected`, `data-today`, and `data-unavailable`.
+  `data-selected`, `data-today`, and `data-unavailable`. A starter stylesheet
+  covering every part lives at
+  [`docs/starter.css`](https://github.com/devlinduldulao/chrona/blob/main/docs/starter.css).
 - Intl output is normalized to plain spaces (U+202F and U+00A0 are collapsed) so
   markup does not depend on which ICU version the runtime shipped with. Two
   things are outside what that normalization can promise, and both matter only

@@ -3,7 +3,7 @@
 Temporal-native, headless date and time primitives. No legacy `Date` values,
 no free-form date parsing, and no CSS in the published packages.
 
-**Status: experimental 0.3.2.** Working releases, not completion of the full
+**Status: experimental 0.3.3.** Working releases, not completion of the full
 [architecture roadmap](PLANS.md). Public APIs are not frozen for v1. 0.3.0
 changes when a field reports a value and takes `today` out of the server render;
 0.2.0 changed the Calendar cell anatomy — see the
@@ -51,6 +51,10 @@ and [SECURITY.md](SECURITY.md) for the provisional reporting policy.
 | [`chrona-core`](https://www.npmjs.com/package/chrona-core) | Pure Calendar, range, field, and picker transitions; prop getters; locale utilities; external store; focus effect helper |
 | [`chrona-react`](https://www.npmjs.com/package/chrona-react) | `Calendar`, `RangeCalendar`, `DateField`, `TimeField`, `DatePicker`, hooks, and `ChronaProvider` |
 | `chrona-playground` | Private Vite workbench; owns all CSS, icons, and the optional runtime polyfill |
+
+The published packages ship no CSS. [`docs/starter.css`](docs/starter.css) is a
+copy-and-edit stylesheet covering every part they emit, so a first calendar does
+not arrive as a column of bare buttons.
 
 Library output is ESM with declarations and source maps, targeting ES2022.
 React 18+ is the peer contract. CI runs the suite against React 19 (the
