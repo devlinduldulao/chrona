@@ -101,13 +101,21 @@ jobs:
           publish chrona-react "$RUNNER_TEMP"/packs/chrona-react-*.tgz
 
       # A green run that skipped both packages is not a release. Prove the
-      # versions are actually on the registry before calling it done.
+      # versions are actually on the registry before calling it done — but npm's
+      # publish pipeline is asynchronous ("your package is being processed"), so
+      # a single immediate read fails a release that in fact succeeded. Poll.
       - name: Confirm the registry has them
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           for name in chrona-core chrona-react; do
-            published=$(npm view "$name@$version" version)
-            [ "$published" = "$version" ] || { echo "::error::$name@$version is not on the registry."; exit 1; }
-            echo "$name@$published is published."
+            for attempt in $(seq 1 30); do
+              if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then
+                echo "$name@$version is published."
+                continue 2
+              fi
+              sleep 10
+            done
+            echo "::error::$name@$version did not appear on the registry within five minutes."
+            exit 1
           done
