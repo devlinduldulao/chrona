@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # create the GitHub Release for the tag
   id-token: write # provenance
 
 jobs:
@@ -140,3 +140,22 @@ jobs:
               exit 1
             fi
           done
+
+      # A pushed tag is not a release page. Everything after 0.1.0 was tag-only
+      # because nothing here created one; the notes come from the changelogs so
+      # the page and the published packages cannot drift apart.
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "$GITHUB_REF_NAME already has a GitHub Release; leaving it alone."
+            exit 0
+          fi
+          node scripts/release-notes.mjs "$version" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Chrona $version" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --verify-tag
