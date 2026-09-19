@@ -1,0 +1,41 @@
+name: Diagnose npm credential
+
+# Temporary. Reports what the NPM_TOKEN secret is actually allowed to do, so a
+# publish failure stops being a guess. Prints identity and policy only — never
+# the token. Delete once the release publishes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Report
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN
+          echo "::group::identity"
+          npm whoami || echo "whoami failed"
+          echo "::endgroup::"
+          echo "::group::what this token can reach"
+          npm access list packages || echo "access list failed"
+          echo "::endgroup::"
+          echo "::group::package policy"
+          for p in chrona-core chrona-react; do
+            echo "--- $p"
+            npm access get status "$p" || true
+            npm access get mfa "$p" || true
+          done
+          echo "::endgroup::"
+          echo "::group::account 2FA mode"
+          npm profile get || echo "profile get failed"
+          echo "::endgroup::"
