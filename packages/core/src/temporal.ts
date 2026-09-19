@@ -20,10 +20,29 @@ export function temporal(): typeof TemporalTypes {
     return globalThis.Temporal;
 }
 
+/**
+ * True when the value really is a Temporal value of this kind, built by a *different* Temporal
+ * implementation than the one on `globalThis` — every Temporal class carries its name as
+ * `Symbol.toStringTag`, so a foreign value still identifies itself even though `instanceof`
+ * rejects it. Two implementations reach one page more easily than it sounds: two copies of a
+ * polyfill in the dependency tree, or one file importing `temporal-polyfill/global` while another
+ * imports `temporal-polyfill/full/global`. Such a value cannot be used — the arithmetic would
+ * survive the mix, but `Intl` would not, failing much later with `TypeError: Cannot use valueOf` —
+ * so this exists to say what is actually wrong rather than blame a string.
+ */
+export function isForeignTemporal(value: unknown, kind: "PlainDate" | "PlainTime"): boolean {
+    return typeof value === "object" && value !== null
+        && (value as Record<symbol, unknown>)[Symbol.toStringTag] === `Temporal.${kind}`;
+}
+
+export function mixedTemporalMessage(name: string, kind: "PlainDate" | "PlainTime"): string {
+    return `${name} is a Temporal.${kind} from another Temporal implementation. Load exactly one.`;
+}
+
 export function assertDate(value: unknown, name = "value"): asserts value is PlainDate {
-    if (!(value instanceof temporal().PlainDate)) {
-        throw new ChronaError("INVALID_DATE", `${name} must be a Temporal.PlainDate, not a string or Date.`);
-    }
+    if (value instanceof temporal().PlainDate) return;
+    if (isForeignTemporal(value, "PlainDate")) throw new ChronaError("TEMPORAL_MISMATCH", mixedTemporalMessage(name, "PlainDate"));
+    throw new ChronaError("INVALID_DATE", `${name} must be a Temporal.PlainDate, not a string or Date.`);
 }
 
 export function sameDate(first: PlainDate | null, second: PlainDate | null): boolean {

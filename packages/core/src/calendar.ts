@@ -19,6 +19,12 @@ export interface CalendarOptions {
     pagedNavigation?: boolean;
     fixedWeeks?: boolean;
     translations?: Partial<Translations>;
+    /**
+     * The date to mark as today. A server cannot know the reader's today, so the React binding
+     * resolves it after hydration unless you pass one here; supply it when the marker has to be in
+     * the server-rendered markup, or to pin it in tests.
+     */
+    today?: PlainDate;
 }
 
 export interface CalendarState {
@@ -41,7 +47,7 @@ export type CalendarEffect =
     | { type: "change"; value: PlainDate | null };
 
 function validateOptions(options: CalendarOptions): void {
-    for (const [name, candidate] of Object.entries({ value: options.value, focusedValue: options.focusedValue, placeholderValue: options.placeholderValue, minValue: options.minValue, maxValue: options.maxValue })) {
+    for (const [name, candidate] of Object.entries({ value: options.value, focusedValue: options.focusedValue, placeholderValue: options.placeholderValue, minValue: options.minValue, maxValue: options.maxValue, today: options.today })) {
         if (candidate != null) assertDate(candidate, name);
     }
     if (options.minValue && options.maxValue && temporal().PlainDate.compare(options.minValue, options.maxValue) > 0) {
@@ -144,7 +150,7 @@ export function transitionCalendar(state: CalendarState, event: CalendarEvent, o
 export const calendarKeys = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown", "Enter", " "]);
 
 /** Styling hooks are mirrored onto both cell elements so either can carry the visual treatment. */
-function describeCell(state: CalendarState, options: CalendarOptions & { today?: PlainDate }, date: PlainDate, month: PlainDate) {
+function describeCell(state: CalendarState, options: CalendarOptions, date: PlainDate, month: PlainDate) {
     const outside = !date.toPlainYearMonth().equals(month.toPlainYearMonth());
     const disabled = isDateDisabled(date, options);
     const unavailable = !!options.isDateUnavailable?.(date);
@@ -165,7 +171,7 @@ function describeCell(state: CalendarState, options: CalendarOptions & { today?:
     };
 }
 
-export function connectCalendar(state: CalendarState, options: CalendarOptions & { id: string; today?: PlainDate }) {
+export function connectCalendar(state: CalendarState, options: CalendarOptions & { id: string }) {
     const text = { ...translations, ...options.translations };
     const part = (name: string) => ({ "data-scope": "calendar", "data-part": name });
     return {

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createRange, createStore, formatDate, getRangeCellProps, getRangeCellTriggerProps, transitionRange, translations, validateRange, type DateRange, type PlainDate, type RangeEvent } from "chrona-core";
+import { createRange, createStore, formatDate, getRangeCellProps, getRangeCellTriggerProps, sameDate, transitionRange, translations, validateRange, type DateRange, type PlainDate, type RangeEvent } from "chrona-core";
 import { Calendar, CalendarSurface, useCalendar, type CalendarProps } from "./calendar";
 import { Part, composeEvent, type PartProps } from "./part";
 import { useFormReset, type HiddenInputProps } from "./form";
@@ -11,6 +11,12 @@ export interface RangeCalendarProps extends Omit<CalendarProps, "value" | "defau
     onChange?: (value: DateRange | null) => void;
     onRangeStartChange?: (value: PlainDate | null) => void;
     onInvalid?: () => void;
+}
+
+function sameRange(first: DateRange | null, second: DateRange | null): boolean {
+    return first === null || second === null
+        ? first === second
+        : sameDate(first.start, second.start) && sameDate(first.end, second.end);
 }
 
 export function useRangeCalendar(input: RangeCalendarProps = {}) {
@@ -44,7 +50,11 @@ export function useRangeCalendar(input: RangeCalendarProps = {}) {
     };
     return {
         state, send, announcement, props, options: props, api, rootRef: calendar.rootRef, months: calendar.months,
-        reset() { const value = props.defaultValue ?? null; store.setState(createRange(value)); props.onChange?.(value); },
+        reset() {
+            const value = props.defaultValue ?? null;
+            store.setState(createRange(value));
+            if (!sameRange(state.value, value)) props.onChange?.(value);
+        },
         calendar: { ...calendar, api },
     };
 }

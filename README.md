@@ -3,9 +3,10 @@
 Temporal-native, headless date and time primitives. No legacy `Date` values,
 no free-form date parsing, and no CSS in the published packages.
 
-**Status: experimental 0.2.1.** Working releases, not completion of the full
-[architecture roadmap](PLANS.md). Public APIs are not frozen for v1, and 0.2.0
-changes the Calendar cell anatomy — see the
+**Status: experimental 0.3.0.** Working releases, not completion of the full
+[architecture roadmap](PLANS.md). Public APIs are not frozen for v1. 0.3.0
+changes when a field reports a value and takes `today` out of the server render;
+0.2.0 changed the Calendar cell anatomy — see the
 [changelog](packages/react/CHANGELOG.md). No screen-reader compatibility
 certification is claimed.
 
@@ -81,11 +82,34 @@ below write `Temporal.PlainDate` with no types import of their own. A file that
 needs those types without importing Chrona should add `import "temporal-spec/global"`
 or list `temporal-spec/global` under `compilerOptions.types`.
 
+`temporal-polyfill` 1.x installs itself only where Temporal is missing, and its
+default entry carries the ISO calendar alone. The repository pins 0.3.x, whose
+global entry replaces native Temporal outright and ships every calendar — so the
+suites here see a runtime that an application on 1.x will not. Other calendar
+systems need `temporal-polyfill/full/global`, and only where the polyfill
+actually installs.
+
 Native support is capability-dependent, not just version-dependent. The local
 Node 26.4.0 runtime supports ISO operations but throws `Not yet implemented`
-for non-ISO arithmetic. The native test command reports these as explicit
-capability skips; the polyfill suite exercises all five calendar systems.
-Chrona does not switch runtimes behind the application's back.
+for non-ISO arithmetic, and `gregory` counts as non-ISO: a Calendar built on a
+Gregorian date renders in the browser and throws during SSR on Node. The native
+test command reports these as explicit capability skips; the polyfill suite
+exercises all of them. Chrona does not switch runtimes behind the application's
+back.
+
+## Server Rendering
+
+`Calendar` leaves `data-today` and `aria-current="date"` out of the server HTML
+and resolves them on the client: a server cannot know the reader's today, and a
+statically prerendered page can be served days after it was built. Pass `today`
+to put the marker in the server HTML yourself.
+
+Give every server-rendered calendar a `placeholderValue` (or a value). Without
+one it opens on the month of its own today, which differs between a server in
+another zone and the browser, and React cannot patch that mismatch up.
+
+Field segments are drafts until their last digit lands, so typing `2026` reports
+that year once instead of reporting 2, 20 and 202 on the way.
 
 ## Calendar
 

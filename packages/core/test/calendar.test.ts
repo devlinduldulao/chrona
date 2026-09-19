@@ -76,7 +76,10 @@ describe("calendar machine", () => {
         expect(() => createCalendar({ minValue: Temporal.PlainDate.from({ year: 2026, month: 2, day: 1 }), maxValue: Temporal.PlainDate.from({ year: 2026, month: 1, day: 1 }) })).toThrow("minValue");
     });
 
-    it.for(["iso8601", "hebrew", "islamic-civil", "japanese", "chinese"])("builds consecutive grids for %s", (calendar, context) => {
+    // `gregory` belongs in this list even though it is not exotic: a Gregorian value reaches the
+    // Calendar whenever an application converts from a ZonedDateTime, and the runtimes that cannot
+    // do non-ISO arithmetic cannot do it either.
+    it.for(["iso8601", "gregory", "hebrew", "islamic-civil", "japanese", "chinese"])("builds consecutive grids for %s", (calendar, context) => {
         if (process.env.CHRONA_TEMPORAL === "native") {
             try {
                 Temporal.PlainDate.from({ year: 2026, month: 9, day: 16 }).withCalendar(calendar).subtract({ days: 1 });
@@ -123,5 +126,20 @@ describe("calendar machine", () => {
         expect(cleared.focusedValue.equals(state.focusedValue)).toBe(true);
         const clamped = syncCalendar(state, { focusedValue: date.add({ days: 20 }), maxValue: date });
         expect(clamped.focusedValue.equals(date)).toBe(true);
+    });
+});
+describe("a second Temporal implementation", () => {
+    const foreignDate = Object.assign(Object.create(null), {
+        [Symbol.toStringTag]: "Temporal.PlainDate",
+        year: 2026, month: 9, day: 16, calendarId: "iso8601",
+    });
+
+    it("tells the calendar's caller which mistake they made", () => {
+        expect(() => createCalendar({ placeholderValue: foreignDate as never }))
+            .toThrow(/another Temporal implementation/);
+        expect(() => createCalendar({ placeholderValue: "2026-09-16" as never }))
+            .toThrow(/not a string or Date/);
+        try { createCalendar({ value: foreignDate as never }); }
+        catch (error) { expect((error as { code: string }).code).toBe("TEMPORAL_MISMATCH"); }
     });
 });

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { renderToString } from "react-dom/server";
+import { hydrateRoot } from "react-dom/client";
 import { Calendar, type CalendarProps } from "../src/calendar";
 import { ChronaProvider, useChronaConfig } from "../src/provider";
 
@@ -19,6 +20,43 @@ function Example(props: CalendarProps) {
         <Calendar.HiddenInput name="date" />
     </Calendar.Root>;
 }
+
+describe("today across a server render", () => {
+    it("leaves the marker out of the server HTML", () => {
+        const html = renderToString(<Example />);
+        expect(html).not.toContain("data-today");
+        expect(html).not.toContain('aria-current="date"');
+    });
+
+    it("marks today on the client without a hydration mismatch, even when the server rendered another day", async () => {
+        const html = renderToString(<Example />);
+        const container = document.createElement("div");
+        container.innerHTML = html;
+        document.body.appendChild(container);
+        const recoverable: string[] = [];
+        // A page prerendered yesterday is served today; the reader's day is the one that counts.
+        const real = Temporal.Now.plainDateISO;
+        const today = real.call(Temporal.Now);
+        const stale = vi.spyOn(Temporal.Now, "plainDateISO").mockReturnValue(today.subtract({ days: 1 }));
+        try {
+            await act(async () => {
+                hydrateRoot(container, <Example />, { onRecoverableError: (error) => recoverable.push(String((error as Error).message)) });
+            });
+        } finally { stale.mockRestore(); }
+        expect(recoverable).toEqual([]);
+        await act(async () => { await Promise.resolve(); });
+        const marked = container.querySelectorAll("[data-today]");
+        expect(marked.length).toBeGreaterThan(0);
+        for (const element of marked) expect((element as HTMLElement).dataset.date).toBe(today.subtract({ days: 1 }).toString());
+        container.remove();
+    });
+
+    it("honours an explicit today so the marker can reach the server HTML", () => {
+        const html = renderToString(<Example today={Temporal.PlainDate.from("2026-09-18")} />);
+        expect(html).toContain('data-date="2026-09-18"');
+        expect(html).toContain('aria-current="date"');
+    });
+});
 
 describe("React Calendar", () => {
     it("reuses warm formatters on a focus move and an unrelated render", () => {
