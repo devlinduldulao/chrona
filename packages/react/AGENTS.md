@@ -11,10 +11,11 @@ https://github.com/devlinduldulao/chrona#readme
    `temporal-spec/global`, so `Temporal.PlainDate` resolves as an ambient global
    in any file that imports from Chrona. A file that uses Temporal types without
    importing Chrona needs `import "temporal-spec/global"` of its own.
-3. **Server Components.** These components hold state: mark their module
-   `"use client"`. The polyfill import is a side effect, so it must reach the
-   client bundle — put it at the top of a `"use client"` module that always
-   loads (a providers file), not in a Server Component. That covers hydration.
+3. **Server Components.** The package carries a `"use client"` directive, so
+   *importing* it from a Server Component is safe; the module that **renders**
+   it still has to be a client module. The polyfill import is a side effect and
+   must reach the client bundle — put it at the top of a `"use client"` module
+   that always loads (a providers file), not in a Server Component.
 4. **SSR module init.** The providers import does not order Node module
    evaluation. If another `"use client"` file reads `Temporal` at module scope
    (`const reference = Temporal.PlainDate.from(...)` at the top of `page.tsx`),
@@ -49,17 +50,53 @@ what the field and calendar open on before a value exists.
 - Typed digits are literal, stepping clamps. 29 February is reachable before the
   year is typed; a finished date that cannot exist reports
   `onInvalid("nonexistent")` rather than clamping to the 28th.
-- Validation waits for a segment to finish. A half-typed year emits nothing
-  until it is complete or the field blurs.
+- A segment is a draft until its last digit lands, and a draft reports nothing:
+  typing `2026` calls `onChange` once with that year, not four times through
+  2, 20 and 202. Blur settles a draft literally — `20` becomes the year 20.
 - Empty fields are `null`. Partial drafts stay internal; `onChange` only sees
   complete, valid values.
+- Segments accept input from soft keyboards, which send no usable `key` and
+  often arrive as a composition. The AM/PM segment also accepts its locale's own
+  label, so it can be set without a hardware keyboard — but it has no pointer
+  affordance, so leave readers a keyboard path to it.
+- A segment announces `aria-valuemin`/`aria-valuemax` narrowed to
+  `minValue`/`maxValue` where that is certain, while still accepting
+  out-of-range input so it can be reported rather than silently refused.
 
 ## SSR determinism
 
-Pass the same reference date, value, locale, and `timeZone` on server and
-client — today is resolved at render time. Segment literals are normalized
-(U+202F and U+00A0 collapse to a plain space), so a 12-hour `TimeField` hydrates
-cleanly across differing ICU versions; `hourCycle="h23"` is not a requirement.
+Pass the same reference date, value, locale and `timeZone` on server and client.
+
+**`today` is resolved on the client, not at render time.** A server cannot know
+the reader's day — it may be in another zone, and a prerendered page can be
+served days after it was built — so `data-today` and `aria-current="date"` are
+absent from the server HTML and appear just after hydration. Pass `today`
+yourself to put the marker in the server HTML.
+
+**Give every server-rendered calendar a reference date.** With no `value`,
+`defaultValue`, `focusedValue`, `defaultFocusedValue` or `placeholderValue`, a
+calendar opens on whichever day the renderer thinks it is, and React will not
+patch up the mismatch that follows. A development build warns once about this
+from the server render.
+
+**Keep values in `iso8601` unless the server is known to manage more.** Node's
+native Temporal cannot do arithmetic on other calendars — `gregory` included —
+so `calendar="gregory"`, or a value carrying that calendar, renders in the
+browser and raises `CALENDAR_UNSUPPORTED` during SSR.
+
+Segment literals are normalized (U+202F and U+00A0 collapse to a plain space),
+so a 12-hour `TimeField` hydrates cleanly across differing ICU versions;
+`hourCycle="h23"` is not a requirement. Two things that normalization cannot
+cover: dates before 1582, which ICU renders through the Julian calendar and
+runtimes disagree about, and `dateStyle` in `ja-JP`/`zh-CN`, where V8 and
+`temporal-polyfill` differ — which only shows when the two sides of a page run
+different implementations.
+
+## Styling
+
+No CSS ships. Style through `data-scope`, `data-part` and state attributes.
+`docs/starter.css` in the repository is a copy-and-edit stylesheet covering every
+part these components emit.
 
 ## Not implemented
 

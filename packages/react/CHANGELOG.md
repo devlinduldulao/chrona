@@ -1,5 +1,29 @@
 # chrona-react
 
+## 0.3.6
+
+### Patch Changes
+
+- Bring the bundled `AGENTS.md` files and both READMEs up to date with 0.3.x. They
+  ship inside the packages, so a stale line is not a repository problem — it is
+  advice being served to whoever reads them next.
+
+  One line was actively wrong: `chrona-react`'s `AGENTS.md` still said today is
+  resolved at render time, which stopped being true when it moved to the client.
+  The Server Components note predated the `"use client"` directive, and the draft
+  rule predated drafts withholding `change` as well as `invalid`.
+
+  Newly documented: `today` and `FieldOptions.timeZone` for results that must not
+  depend on when and where the code runs; `CALENDAR_UNSUPPORTED` and the runtimes
+  that raise it; soft-keyboard and localized day-period input; announced segment
+  ranges and why they differ from what a segment accepts; the two formatting
+  splits normalization cannot cover; and `docs/starter.css`.
+
+  Both READMEs gain a table of every `ChronaError` code, which is stable and worth
+  matching on where the message is not.
+
+  - chrona-core@0.3.6
+
 ## 0.3.5
 
 ### Patch Changes

@@ -37,10 +37,53 @@ being a button in the accessibility tree.
 - `DIGIT` is literal (`overflow: "reject"`); `STEP` and `EDGE` clamp
   (`overflow: "constrain"`). An impossible finished date yields
   `{ type: "invalid", reason: "nonexistent" }`.
-- A segment with an open digit buffer is a draft and emits no `invalid` effect.
-  Send `BLUR` to close the draft and validate what is left.
+- A segment with an open digit buffer is a draft and emits **neither `change`
+  nor `invalid`**. Typing `2026` into a year reports that year once, not the
+  years 2, 20 and 202 on the way. Send `BLUR` to close the draft and settle.
 - `segmentBounds` widens the day when the month or year is still blank, so
-  29 February stays reachable in month/day/year locales.
+  29 February stays reachable in month/day/year locales. It governs *typing*;
+  `connectField` announces a narrower `aria-valuemin`/`aria-valuemax` when
+  `minValue`/`maxValue` make one certain. Do not use the announced range to
+  decide what input to accept — an out-of-range year must stay typeable so it
+  can be reported as out of range.
+- `dayPeriodValue` matches typed text against the locale's own AM/PM labels, for
+  bindings that must accept a day period from something other than a keydown.
+
+## Two ways the runtime bites, both server-side only
+
+1. **A calendar the runtime cannot do.** Node's native Temporal handles
+   `iso8601` and throws `Not yet implemented` for everything else — `gregory`
+   included, which arrives by accident from a `ZonedDateTime`. `createCalendar`
+   probes once and raises `CALENDAR_UNSUPPORTED`. The same code works in a
+   browser, so this looks like an SSR-only bug. Keep values in `iso8601`, or
+   give the server `temporal-polyfill/full/global`.
+2. **Two Temporal implementations on one page.** Two copies of a polyfill, or a
+   mix of its default and `full` entry points, each install their own
+   `globalThis.Temporal`; the loser's values then fail `instanceof`. They are
+   refused with `TEMPORAL_MISMATCH` rather than being called strings, because
+   the arithmetic would survive the mix and `Intl` would not.
+
+`options.today` fixes the date a calendar marks, and `FieldOptions.timeZone`
+fixes the zone a field resolves today in. Supply them where the answer must not
+depend on when or where the code runs.
+
+## Error codes
+
+`ChronaError.code` is stable; the message is not. Match on the code.
+
+| Code | Means |
+| --- | --- |
+| `TEMPORAL_MISSING` | No `globalThis.Temporal`. Load a polyfill. |
+| `TEMPORAL_MISMATCH` | A Temporal value from a *different* implementation. |
+| `CALENDAR_UNSUPPORTED` | This runtime cannot do arithmetic on that calendar. |
+| `INVALID_DATE` | Not a `Temporal.PlainDate` — a string or `Date`, probably. |
+| `INVALID_FIELD_VALUE` | Not the `PlainDate`/`PlainTime` the field wanted. |
+| `INVALID_RANGE` | Range endpoints disagree on calendar, or start is after end. |
+| `INVALID_BOUNDS` | `minValue` is after `maxValue`. |
+| `INVALID_WEEK_START` | `firstDayOfWeek` outside 1–7. |
+| `INVALID_MONTH_COUNT` | `numberOfMonths` outside 1–12. |
+| `UNSUPPORTED_FIELD_CALENDAR` | `DateField` takes ISO or Gregorian only. |
+| `UNSUPPORTED_FIELD_YEAR` | `DateField` takes years 1–9999. |
 
 ## Intl
 

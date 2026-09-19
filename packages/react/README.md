@@ -6,7 +6,7 @@ values, no free-form date parsing, and no CSS — you own every pixel.
 Part of [Chrona](https://github.com/devlinduldulao/chrona). Built on
 [`chrona-core`](https://www.npmjs.com/package/chrona-core).
 
-> **Status: experimental 0.3.5.** Public APIs and styling attributes are not
+> **Status: experimental 0.3.6.** Public APIs and styling attributes are not
 > frozen for v1. 0.3.0 changes when a field reports a value and leaves `today`
 > to the client; 0.2.0 changed the Calendar cell anatomy. See the
 > [changelog](./CHANGELOG.md). Automated axe checks pass, but no screen-reader
@@ -120,7 +120,7 @@ return focus to the trigger.
 | `DateField` | `chrona-react/date-field` | Locale-ordered segments; ISO/Gregorian years 1–9999 |
 | `TimeField` | `chrona-react/time-field` | `hourCycle` h11/h12/h23/h24, minute or second granularity |
 | `DatePicker` | `chrona-react/date-picker` | Field plus calendar in a native dialog |
-| `ChronaProvider` | — | Ambient `locale` and `timeZone` |
+| `ChronaProvider` | — | Ambient `locale`, `timeZone`, `dir` and `translations` |
 
 A barrel export is also available. Matching hooks — `useCalendar`,
 `useRangeCalendar`, `useDateField`, `useTimeField`, `useDatePicker` — expose
@@ -153,6 +153,12 @@ Hidden inputs serialize with `.toString()` and are never read back.
 **`required` is accessibility metadata, not native submit blocking.** Hidden
 inputs do not take part in browser constraint validation — validate required,
 incomplete, or invalid values in your form layer before submission.
+
+Every failure is a `ChronaError` carrying a stable `code`, listed in
+[`chrona-core`'s README](https://www.npmjs.com/package/chrona-core#errors).
+`TEMPORAL_MISSING`, `TEMPORAL_MISMATCH` and `CALENDAR_UNSUPPORTED` are the three
+worth handling: each means the page's Temporal runtime is not what the component
+needs, and each usually shows up only on the server.
 
 ## With shadcn/ui
 

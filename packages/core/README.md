@@ -9,7 +9,7 @@ external store. It renders nothing. If you want React components, install
 [`chrona-react`](https://www.npmjs.com/package/chrona-react) instead — it is
 built on this package.
 
-> **Status: experimental 0.3.5.** Public APIs are not frozen for v1. 0.3.0
+> **Status: experimental 0.3.6.** Public APIs are not frozen for v1. 0.3.0
 > stops a half-typed segment reporting a value; 0.2.0 split the calendar cell
 > getters. See the [changelog](./CHANGELOG.md). No screen-reader compatibility
 > certification is claimed.
@@ -116,8 +116,41 @@ closes it, so typing `2026` reports that year once rather than reporting the
 years 2, 20 and 202 on the way. Ranges are inclusive at both ends, normalize
 backward selection, and keep the first endpoint as draft state.
 
+A segment's `aria-valuemin`/`aria-valuemax` narrow to `minValue`/`maxValue`
+wherever that is certain — the month only once the year says which boundary year
+it is in. `segmentBounds` is separate and deliberately stays wide, because an
+out-of-range year has to remain typeable in order to be reported as out of
+range.
+
 Intl formatter caches are bounded to 100 entries per constructor, keyed by
 locale and normalized options.
+
+## Errors
+
+Every failure is a `ChronaError` with a stable `code`. Match on the code; the
+message is prose and may be reworded.
+
+| Code | Means |
+| --- | --- |
+| `TEMPORAL_MISSING` | No `globalThis.Temporal`. Load a polyfill first. |
+| `TEMPORAL_MISMATCH` | A Temporal value built by a *different* implementation — two copies of a polyfill, or its default and `full` entry points together. |
+| `CALENDAR_UNSUPPORTED` | This runtime cannot do arithmetic on that calendar. Node's native Temporal manages `iso8601` and nothing else, `gregory` included, so this is usually a server-only failure. |
+| `INVALID_DATE` | Not a `Temporal.PlainDate`. There is no parsing layer, so a string or `Date` lands here. |
+| `INVALID_FIELD_VALUE` | Not the `PlainDate` or `PlainTime` the field expected. |
+| `INVALID_RANGE` | Range endpoints use different calendars, or start is after end. |
+| `INVALID_BOUNDS` | `minValue` is after `maxValue`. |
+| `INVALID_WEEK_START` | `firstDayOfWeek` is outside 1–7. |
+| `INVALID_MONTH_COUNT` | `numberOfMonths` is outside 1–12. |
+| `UNSUPPORTED_FIELD_CALENDAR` | `DateField` accepts ISO and Gregorian only; use `Calendar` for other systems. |
+| `UNSUPPORTED_FIELD_YEAR` | `DateField` accepts years 1 through 9999. |
+
+## Determinism
+
+Two options exist so a result need not depend on when or where the code runs:
+`CalendarOptions.today` fixes the date a calendar marks, and
+`FieldOptions.timeZone` fixes the zone a field resolves today in. Without them
+both fall back to the host clock, which is fine in a browser and a mismatch
+waiting to happen across a server render.
 
 ## Notes
 
